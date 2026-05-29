@@ -1,8 +1,8 @@
 from django.urls import path
 
-from core import views
+from core.views import HealthLiveView, HealthReadyView
 
 urlpatterns = [
-    path("health/", views.health_live, name="health-live"),
-    path("ready/", views.health_ready, name="health-ready"),
+    path("health/", HealthLiveView.as_view(), name="health-live"),
+    path("ready/", HealthReadyView.as_view(), name="health-ready"),
 ]

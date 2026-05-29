@@ -2,6 +2,10 @@ from django.conf import settings
 from django.core.cache import cache
 from django.db import connection
 
+from core.logging import get_logger
+
+logger = get_logger(__name__)
+
 
 def check_database() -> tuple[bool, str]:
     try:
@@ -10,6 +14,7 @@ def check_database() -> tuple[bool, str]:
             cursor.execute("SELECT 1")
         return True, "ok"
     except Exception as exc:
+        logger.error("healthcheck_database_failed", error=str(exc))
         return False, str(exc)
 
 
@@ -22,6 +27,7 @@ def check_redis() -> tuple[bool, str]:
         cache.delete(key)
         return True, "ok"
     except Exception as exc:
+        logger.error("healthcheck_redis_failed", error=str(exc))
         return False, str(exc)
 
 
@@ -33,6 +39,7 @@ def check_celery_broker() -> tuple[bool, str]:
             conn.ensure_connection(max_retries=1)
         return True, "ok"
     except Exception as exc:
+        logger.error("healthcheck_celery_broker_failed", error=str(exc))
         return False, str(exc)
 
 
@@ -46,6 +53,7 @@ def check_celery_workers() -> tuple[bool, str]:
             return False, "no workers responded"
         return True, "ok"
     except Exception as exc:
+        logger.error("healthcheck_celery_workers_failed", error=str(exc))
         return False, str(exc)
 
 
