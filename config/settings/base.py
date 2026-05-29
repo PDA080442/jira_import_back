@@ -6,6 +6,8 @@ BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
 env = environ.Env(
     DEBUG=(bool, False),
+    DB_CONN_MAX_AGE=(int, 0),
+    DB_CONNECT_TIMEOUT=(int, 10),
 )
 
 environ.Env.read_env(BASE_DIR / ".env")
@@ -58,7 +60,7 @@ ROOT_URLCONF = "config.urls"
 TEMPLATES = [
     {
         "BACKEND": "django.template.backends.django.DjangoTemplates",
-        "DIRS": [BASE_DIR / "templates"],
+        "DIRS": [BASE_DIR / "project_templates"],
         "APP_DIRS": True,
         "OPTIONS": {
             "context_processors": [
@@ -72,12 +74,14 @@ TEMPLATES = [
 
 WSGI_APPLICATION = "config.wsgi.application"
 
-DATABASES = {
-    "default": env.db(
-        "DATABASE_URL",
-        default=f"sqlite:///{BASE_DIR / 'db.sqlite3'}",
-    )
-}
+
+def configure_database(url: str) -> dict:
+    db_settings = env.db_url_config(url)
+    db_settings["CONN_MAX_AGE"] = env.int("DB_CONN_MAX_AGE")
+    db_settings.setdefault("OPTIONS", {})
+    db_settings["OPTIONS"]["connect_timeout"] = env.int("DB_CONNECT_TIMEOUT")
+    return db_settings
+
 
 AUTH_PASSWORD_VALIDATORS = [
     {"NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"},
