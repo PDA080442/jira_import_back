@@ -3,11 +3,22 @@
 Access control (member/admin/owner) is enforced in services — not in permission classes —
 so non-members receive 404 instead of 403.
 """
+from drf_spectacular.utils import extend_schema_view
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from tenants.openapi import (
+    workspace_create_schema,
+    workspace_delete_schema,
+    workspace_get_schema,
+    workspace_invite_accept_schema,
+    workspace_invite_create_schema,
+    workspace_list_schema,
+    workspace_members_schema,
+    workspace_update_schema,
+)
 from tenants.serializers import (
     WorkspaceCreateSerializer,
     WorkspaceInviteAcceptSerializer,
@@ -22,6 +33,10 @@ from tenants.services import membership as membership_service
 from tenants.services import workspace as workspace_service
 
 
+@extend_schema_view(
+    get=workspace_list_schema,
+    post=workspace_create_schema,
+)
 class WorkspaceListCreateView(APIView):
     """GET/POST /api/workspaces/"""
 
@@ -41,6 +56,11 @@ class WorkspaceListCreateView(APIView):
         return Response(WorkspaceSerializer(workspace).data, status=status.HTTP_201_CREATED)
 
 
+@extend_schema_view(
+    get=workspace_get_schema,
+    patch=workspace_update_schema,
+    delete=workspace_delete_schema,
+)
 class WorkspaceDetailView(APIView):
     """GET/PATCH/DELETE /api/workspaces/{pk}/ — access checks in services (404/403)."""
 
@@ -67,6 +87,7 @@ class WorkspaceDetailView(APIView):
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
+@extend_schema_view(get=workspace_members_schema)
 class WorkspaceMemberListView(APIView):
     """GET /api/workspaces/{pk}/members/"""
 
@@ -80,6 +101,7 @@ class WorkspaceMemberListView(APIView):
         )
 
 
+@extend_schema_view(post=workspace_invite_create_schema)
 class WorkspaceInviteCreateView(APIView):
     """POST /api/workspaces/{pk}/invites/"""
 
@@ -101,6 +123,7 @@ class WorkspaceInviteCreateView(APIView):
         )
 
 
+@extend_schema_view(post=workspace_invite_accept_schema)
 class WorkspaceInviteAcceptView(APIView):
     """POST /api/workspaces/invites/accept/"""
 

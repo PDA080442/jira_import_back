@@ -10,6 +10,7 @@ class WorkspaceCreateSerializer(serializers.Serializer):
     name = serializers.CharField(
         max_length=MAX_WORKSPACE_NAME_LENGTH,
         min_length=MIN_WORKSPACE_NAME_LENGTH,
+        help_text="Display name; slug is derived automatically and cannot be set here.",
     )
 
 
@@ -17,16 +18,17 @@ class WorkspaceUpdateSerializer(serializers.Serializer):
     name = serializers.CharField(
         max_length=MAX_WORKSPACE_NAME_LENGTH,
         min_length=MIN_WORKSPACE_NAME_LENGTH,
+        help_text="New workspace display name (admin or owner only).",
     )
 
 
 class WorkspaceSerializer(serializers.Serializer):
-    id = serializers.UUIDField(read_only=True)
-    name = serializers.CharField(read_only=True)
-    slug = serializers.CharField(read_only=True)
-    owner_id = serializers.UUIDField(read_only=True)
-    created_at = serializers.DateTimeField(read_only=True)
-    updated_at = serializers.DateTimeField(read_only=True)
+    id = serializers.UUIDField(read_only=True, help_text="Workspace primary key.")
+    name = serializers.CharField(read_only=True, help_text="Display name.")
+    slug = serializers.CharField(read_only=True, help_text="URL-safe unique slug (auto-generated, immutable).")
+    owner_id = serializers.UUIDField(read_only=True, help_text="UUID of the workspace owner user.")
+    created_at = serializers.DateTimeField(read_only=True, help_text="Creation timestamp (UTC).")
+    updated_at = serializers.DateTimeField(read_only=True, help_text="Last update timestamp (UTC).")
 
     def to_representation(self, workspace: Workspace):
         return {
@@ -40,11 +42,11 @@ class WorkspaceSerializer(serializers.Serializer):
 
 
 class WorkspaceMemberSerializer(serializers.Serializer):
-    id = serializers.UUIDField(read_only=True)
-    user_id = serializers.UUIDField(read_only=True)
-    email = serializers.EmailField(read_only=True)
-    role = serializers.CharField(read_only=True)
-    joined_at = serializers.DateTimeField(read_only=True)
+    id = serializers.UUIDField(read_only=True, help_text="Membership record id.")
+    user_id = serializers.UUIDField(read_only=True, help_text="User UUID.")
+    email = serializers.EmailField(read_only=True, help_text="Member email.")
+    role = serializers.CharField(read_only=True, help_text="Role: owner, admin, editor, or viewer.")
+    joined_at = serializers.DateTimeField(read_only=True, help_text="When the user joined the workspace (UTC).")
 
     def to_representation(self, membership: WorkspaceMembership):
         return {
@@ -57,9 +59,10 @@ class WorkspaceMemberSerializer(serializers.Serializer):
 
 
 class WorkspaceInviteCreateSerializer(serializers.Serializer):
-    email = serializers.EmailField()
+    email = serializers.EmailField(help_text="Invitee email; must match on accept.")
     role = serializers.ChoiceField(
         choices=[(role.value, role.label) for role in sorted(INVITE_ROLES, key=lambda r: r.value)],
+        help_text="Membership role: admin, editor, or viewer (owner is not allowed).",
     )
 
     def validate_email(self, value):
@@ -67,14 +70,14 @@ class WorkspaceInviteCreateSerializer(serializers.Serializer):
 
 
 class WorkspaceInviteAcceptSerializer(serializers.Serializer):
-    token = serializers.CharField()
+    token = serializers.CharField(help_text="Raw invite token from the invitation email link.")
 
 
 class WorkspaceInviteResponseSerializer(serializers.Serializer):
-    id = serializers.UUIDField(read_only=True)
-    email = serializers.EmailField(read_only=True)
-    role = serializers.CharField(read_only=True)
-    expires_at = serializers.DateTimeField(read_only=True)
+    id = serializers.UUIDField(read_only=True, help_text="Invite record id.")
+    email = serializers.EmailField(read_only=True, help_text="Invited email address.")
+    role = serializers.CharField(read_only=True, help_text="Role assigned on accept.")
+    expires_at = serializers.DateTimeField(read_only=True, help_text="Invite expiry (UTC). Token is not returned in API.")
 
     def to_representation(self, invite):
         return {
