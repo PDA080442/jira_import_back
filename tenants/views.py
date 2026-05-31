@@ -1,4 +1,8 @@
-"""Thin DRF views for workspace, members and invites."""
+"""Thin DRF views: validate input, delegate to services.
+
+Access control (member/admin/owner) is enforced in services — not in permission classes —
+so non-members receive 404 instead of 403.
+"""
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response

@@ -2,15 +2,22 @@
 from rest_framework import serializers
 
 from accounts.models import User
+from tenants.constants import MAX_WORKSPACE_NAME_LENGTH, MIN_WORKSPACE_NAME_LENGTH
 from tenants.models import INVITE_ROLES, Workspace, WorkspaceMembership, WorkspaceRole
 
 
 class WorkspaceCreateSerializer(serializers.Serializer):
-    name = serializers.CharField(max_length=255, min_length=1)
+    name = serializers.CharField(
+        max_length=MAX_WORKSPACE_NAME_LENGTH,
+        min_length=MIN_WORKSPACE_NAME_LENGTH,
+    )
 
 
 class WorkspaceUpdateSerializer(serializers.Serializer):
-    name = serializers.CharField(max_length=255, min_length=1)
+    name = serializers.CharField(
+        max_length=MAX_WORKSPACE_NAME_LENGTH,
+        min_length=MIN_WORKSPACE_NAME_LENGTH,
+    )
 
 
 class WorkspaceSerializer(serializers.Serializer):

@@ -35,6 +35,12 @@ def create_invite(*, workspace: Workspace, user: User, email: str, role: str) ->
     from tenants.tasks import send_workspace_invite_email
 
     if not user_has_admin_role(user=user, workspace=workspace):
+        logger.warning(
+            "workspace_access_forbidden",
+            user_id=str(user.id),
+            workspace_id=str(workspace.id),
+            action="invite",
+        )
         raise ApiError(
             detail="You do not have permission to invite members.",
             code="FORBIDDEN",

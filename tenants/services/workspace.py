@@ -26,6 +26,7 @@ def get_workspace(*, workspace_id, user: User) -> Workspace:
     try:
         workspace = Workspace.objects.select_related("owner").get(pk=workspace_id)
     except Workspace.DoesNotExist as exc:
+        logger.warning("workspace_access_not_found", user_id=str(user.id))
         raise ApiError(
             detail="Workspace not found.",
             code="NOT_FOUND",
@@ -33,6 +34,7 @@ def get_workspace(*, workspace_id, user: User) -> Workspace:
         ) from exc
 
     if not WorkspaceMembership.objects.filter(workspace=workspace, user=user).exists():
+        logger.warning("workspace_access_not_found", user_id=str(user.id))
         raise ApiError(
             detail="Workspace not found.",
             code="NOT_FOUND",
@@ -63,6 +65,12 @@ def create_workspace(*, user: User, name: str) -> Workspace:
 
 def update_workspace(*, workspace: Workspace, user: User, name: str) -> Workspace:
     if not user_has_admin_role(user=user, workspace=workspace):
+        logger.warning(
+            "workspace_access_forbidden",
+            user_id=str(user.id),
+            workspace_id=str(workspace.id),
+            action="update",
+        )
         raise ApiError(
             detail="You do not have permission to update this workspace.",
             code="FORBIDDEN",
@@ -84,6 +92,12 @@ def update_workspace(*, workspace: Workspace, user: User, name: str) -> Workspac
 
 def delete_workspace(*, workspace: Workspace, user: User) -> None:
     if not user_is_owner(user=user, workspace=workspace):
+        logger.warning(
+            "workspace_access_forbidden",
+            user_id=str(user.id),
+            workspace_id=str(workspace.id),
+            action="delete",
+        )
         raise ApiError(
             detail="Only the workspace owner can delete it.",
             code="FORBIDDEN",
