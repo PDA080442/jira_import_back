@@ -3,13 +3,14 @@ from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from rest_framework import serializers
 
+from accounts.constants import MIN_PASSWORD_LENGTH
 from accounts.models import User
 
 
 class RegisterSerializer(serializers.Serializer):
     email = serializers.EmailField()
-    password = serializers.CharField(write_only=True, min_length=8)
-    password_confirm = serializers.CharField(write_only=True, min_length=8)
+    password = serializers.CharField(write_only=True, min_length=MIN_PASSWORD_LENGTH)
+    password_confirm = serializers.CharField(write_only=True, min_length=MIN_PASSWORD_LENGTH)
 
     def validate_email(self, value):
         email = User.objects.normalize_email(value)
@@ -44,8 +45,8 @@ class PasswordResetRequestSerializer(serializers.Serializer):
 
 class PasswordConfirmSerializer(serializers.Serializer):
     token = serializers.CharField()
-    password = serializers.CharField(write_only=True, min_length=8)
-    password_confirm = serializers.CharField(write_only=True, min_length=8)
+    password = serializers.CharField(write_only=True, min_length=MIN_PASSWORD_LENGTH)
+    password_confirm = serializers.CharField(write_only=True, min_length=MIN_PASSWORD_LENGTH)
 
     def validate(self, attrs):
         if attrs["password"] != attrs["password_confirm"]:

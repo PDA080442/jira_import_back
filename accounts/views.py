@@ -18,10 +18,15 @@ from accounts.services import auth as auth_service
 from accounts.services import profile as profile_service
 
 
-class RegisterView(APIView):
-    """POST /api/auth/register/ — create inactive user and send verification email."""
+class PublicAuthView(APIView):
+    """Public auth endpoints: no JWT required (explicit override of global defaults)."""
 
+    authentication_classes = []
     permission_classes = [AllowAny]
+
+
+class RegisterView(PublicAuthView):
+    """POST /api/auth/register/ — create inactive user and send verification email."""
 
     def post(self, request):
         serializer = RegisterSerializer(data=request.data)
@@ -36,9 +41,7 @@ class RegisterView(APIView):
         )
 
 
-class VerifyEmailView(APIView):
-    permission_classes = [AllowAny]
-
+class VerifyEmailView(PublicAuthView):
     def post(self, request):
         serializer = VerifyEmailSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -46,9 +49,7 @@ class VerifyEmailView(APIView):
         return Response({"message": "Email verified successfully."})
 
 
-class LoginView(APIView):
-    permission_classes = [AllowAny]
-
+class LoginView(PublicAuthView):
     def post(self, request):
         serializer = LoginSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -59,9 +60,7 @@ class LoginView(APIView):
         return Response(tokens)
 
 
-class LogoutView(APIView):
-    permission_classes = [AllowAny]
-
+class LogoutView(PublicAuthView):
     def post(self, request):
         serializer = LogoutSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -73,9 +72,7 @@ class LogoutView(APIView):
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
-class PasswordResetView(APIView):
-    permission_classes = [AllowAny]
-
+class PasswordResetView(PublicAuthView):
     def post(self, request):
         serializer = PasswordResetRequestSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -83,9 +80,7 @@ class PasswordResetView(APIView):
         return Response({"message": "If the email exists, a reset link has been sent."})
 
 
-class PasswordConfirmView(APIView):
-    permission_classes = [AllowAny]
-
+class PasswordConfirmView(PublicAuthView):
     def post(self, request):
         serializer = PasswordConfirmSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -97,7 +92,7 @@ class PasswordConfirmView(APIView):
 
 
 class MeView(APIView):
-    """GET/PATCH /api/me/ — authenticated user profile."""
+    """GET/PATCH /api/me/ — own profile only (object scope = request.user)."""
 
     permission_classes = [IsAuthenticated]
 
@@ -113,4 +108,5 @@ class MeView(APIView):
 
 
 class RefreshTokenView(TokenRefreshView):
+    authentication_classes = []
     permission_classes = [AllowAny]
