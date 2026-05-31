@@ -1,10 +1,22 @@
 """Thin DRF views: validate request, delegate to services, return Response."""
+from drf_spectacular.utils import extend_schema_view
 from rest_framework import status
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework_simplejwt.views import TokenRefreshView
 
+from accounts.openapi import (
+    login_schema,
+    logout_schema,
+    me_get_schema,
+    me_patch_schema,
+    password_confirm_schema,
+    password_reset_schema,
+    refresh_schema,
+    register_schema,
+    verify_email_schema,
+)
 from accounts.serializers import (
     LoginSerializer,
     LogoutSerializer,
@@ -25,6 +37,7 @@ class PublicAuthView(APIView):
     permission_classes = [AllowAny]
 
 
+@extend_schema_view(post=register_schema)
 class RegisterView(PublicAuthView):
     """POST /api/auth/register/ — create inactive user and send verification email."""
 
@@ -41,6 +54,7 @@ class RegisterView(PublicAuthView):
         )
 
 
+@extend_schema_view(post=verify_email_schema)
 class VerifyEmailView(PublicAuthView):
     def post(self, request):
         serializer = VerifyEmailSerializer(data=request.data)
@@ -49,6 +63,7 @@ class VerifyEmailView(PublicAuthView):
         return Response({"message": "Email verified successfully."})
 
 
+@extend_schema_view(post=login_schema)
 class LoginView(PublicAuthView):
     def post(self, request):
         serializer = LoginSerializer(data=request.data)
@@ -60,6 +75,7 @@ class LoginView(PublicAuthView):
         return Response(tokens)
 
 
+@extend_schema_view(post=logout_schema)
 class LogoutView(PublicAuthView):
     def post(self, request):
         serializer = LogoutSerializer(data=request.data)
@@ -72,6 +88,7 @@ class LogoutView(PublicAuthView):
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
+@extend_schema_view(post=password_reset_schema)
 class PasswordResetView(PublicAuthView):
     def post(self, request):
         serializer = PasswordResetRequestSerializer(data=request.data)
@@ -80,6 +97,7 @@ class PasswordResetView(PublicAuthView):
         return Response({"message": "If the email exists, a reset link has been sent."})
 
 
+@extend_schema_view(post=password_confirm_schema)
 class PasswordConfirmView(PublicAuthView):
     def post(self, request):
         serializer = PasswordConfirmSerializer(data=request.data)
@@ -91,6 +109,7 @@ class PasswordConfirmView(PublicAuthView):
         return Response({"message": "Password has been reset."})
 
 
+@extend_schema_view(get=me_get_schema, patch=me_patch_schema)
 class MeView(APIView):
     """GET/PATCH /api/me/ — own profile only (object scope = request.user)."""
 
@@ -107,6 +126,7 @@ class MeView(APIView):
         return Response(ProfileSerializer(profile).data)
 
 
+@extend_schema_view(post=refresh_schema)
 class RefreshTokenView(TokenRefreshView):
     authentication_classes = []
     permission_classes = [AllowAny]
