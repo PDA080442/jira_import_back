@@ -133,7 +133,7 @@ REST_FRAMEWORK = {
 SPECTACULAR_SETTINGS = {
     "TITLE": "Jira Backlog Import API",
     "DESCRIPTION": (
-        "REST API for Jira Backlog Import Service (EP1–EP2). "
+        "REST API for Jira Backlog Import Service (EP1–EP3). "
         "Unified errors: `{ traceId, code, message, fieldErrors }`. "
         "Authenticated endpoints require `Authorization: Bearer <access>` JWT. "
         "Optional header `X-Trace-Id` for correlation."
@@ -151,6 +151,13 @@ SPECTACULAR_SETTINGS = {
             "description": (
                 "Workspace CRUD, members, and email invites. "
                 "Access checks in services: non-members get 404 NOT_FOUND."
+            ),
+        },
+        {
+            "name": "Jira Connections",
+            "description": (
+                "Jira Cloud connections per workspace. "
+                "API tokens encrypted at rest; never returned in API responses."
             ),
         },
     ],
@@ -236,3 +243,9 @@ PASSWORD_RESET_TTL_HOURS = env.int("PASSWORD_RESET_TTL_HOURS", default=24)
 FRONTEND_URL = env("FRONTEND_URL", default="http://localhost:3000")
 DEFAULT_FROM_EMAIL = env("DEFAULT_FROM_EMAIL", default="noreply@jira-import.local")
 WORKSPACE_INVITE_TTL_HOURS = env.int("WORKSPACE_INVITE_TTL_HOURS", default=168)
+
+# Fernet key for encrypting Jira API tokens at rest (generate: Fernet.generate_key())
+FIELD_ENCRYPTION_KEY = env(
+    "FIELD_ENCRYPTION_KEY",
+    default="Jx7ifvzS8Bq5tUkIooy9UMO3MjmcQ123w7LIXMCk_hs=",
+)
