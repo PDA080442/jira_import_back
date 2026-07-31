@@ -21,3 +21,5 @@ PASSWORD_HASHERS = [
 ]
 
 STRUCTLOG_JSON = False
+
+EMAIL_BACKEND = "django.core.mail.backends.locmem.EmailBackend"

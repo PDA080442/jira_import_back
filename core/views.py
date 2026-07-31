@@ -1,14 +1,17 @@
+from drf_spectacular.utils import extend_schema_view
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from core.logging import get_logger
+from core.openapi_health import health_live_schema, health_ready_schema
 from core.serializers.health import HealthLiveSerializer, HealthReadySerializer
 from core.services.health import is_ready, run_readiness_checks
 
 logger = get_logger(__name__)
 
 
+@extend_schema_view(get=health_live_schema)
 class HealthLiveView(APIView):
     permission_classes = [AllowAny]
     authentication_classes = []
@@ -21,6 +24,7 @@ class HealthLiveView(APIView):
         return Response(serializer.data)
 
 
+@extend_schema_view(get=health_ready_schema)
 class HealthReadyView(APIView):
     permission_classes = [AllowAny]
     authentication_classes = []

@@ -1,3 +1,4 @@
+from datetime import timedelta
 from pathlib import Path
 
 import environ
@@ -30,6 +31,9 @@ DJANGO_APPS = [
 THIRD_PARTY_APPS = [
     "corsheaders",
     "rest_framework",
+    "drf_spectacular",
+    "rest_framework_simplejwt",
+    "rest_framework_simplejwt.token_blacklist",
     "django_celery_beat",
 ]
 
@@ -110,15 +114,62 @@ MEDIA_ROOT = BASE_DIR / "media"
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
+AUTH_USER_MODEL = "accounts.User"
+
 REST_FRAMEWORK = {
     "DEFAULT_RENDERER_CLASSES": [
         "rest_framework.renderers.JSONRenderer",
     ],
-    "DEFAULT_AUTHENTICATION_CLASSES": [],
+    "DEFAULT_AUTHENTICATION_CLASSES": [
+        "rest_framework_simplejwt.authentication.JWTAuthentication",
+    ],
     "DEFAULT_PERMISSION_CLASSES": [
         "rest_framework.permissions.IsAuthenticated",
     ],
+    "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
     "EXCEPTION_HANDLER": "core.exceptions.custom_exception_handler",
+}
+
+SPECTACULAR_SETTINGS = {
+    "TITLE": "Jira Backlog Import API",
+    "DESCRIPTION": (
+        "REST API for Jira Backlog Import Service (EP1–EP2). "
+        "Unified errors: `{ traceId, code, message, fieldErrors }`. "
+        "Authenticated endpoints require `Authorization: Bearer <access>` JWT. "
+        "Optional header `X-Trace-Id` for correlation."
+    ),
+    "VERSION": "0.1.0",
+    "SERVE_INCLUDE_SCHEMA": False,
+    "COMPONENT_SPLIT_REQUEST": True,
+    "SCHEMA_PATH_PREFIX": r"/api/",
+    "TAGS": [
+        {"name": "Health", "description": "Liveness and readiness probes (no auth)."},
+        {"name": "Auth", "description": "Registration, login, JWT refresh, password reset."},
+        {"name": "Profile", "description": "Authenticated user profile (`/api/me/`)."},
+        {
+            "name": "Workspaces",
+            "description": (
+                "Workspace CRUD, members, and email invites. "
+                "Access checks in services: non-members get 404 NOT_FOUND."
+            ),
+        },
+    ],
+    "APPEND_COMPONENTS": {
+        "securitySchemes": {
+            "BearerAuth": {
+                "type": "http",
+                "scheme": "bearer",
+                "bearerFormat": "JWT",
+                "description": "JWT access token from POST /api/auth/login/",
+            },
+        },
+    },
+    "SECURITY": [{"BearerAuth": []}],
+    "SWAGGER_UI_SETTINGS": {
+        "deepLinking": True,
+        "persistAuthorization": True,
+        "displayRequestDuration": True,
+    },
 }
 
 CORS_ALLOWED_ORIGINS = env.list("CORS_ALLOWED_ORIGINS", default=[])
@@ -171,3 +222,17 @@ CELERY_TASK_TIME_LIMIT = 30 * 60
 CELERY_BEAT_SCHEDULER = "django_celery_beat.schedulers:DatabaseScheduler"
 
 HEALTHCHECK_CELERY_TIMEOUT = env.float("HEALTHCHECK_CELERY_TIMEOUT", default=1.0)
+
+SIMPLE_JWT = {
+    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=15),
+    "REFRESH_TOKEN_LIFETIME": timedelta(days=7),
+    "ROTATE_REFRESH_TOKENS": False,
+    "BLACKLIST_AFTER_ROTATION": True,
+    "UPDATE_LAST_LOGIN": True,
+}
+
+EMAIL_VERIFICATION_TTL_HOURS = env.int("EMAIL_VERIFICATION_TTL_HOURS", default=24)
+PASSWORD_RESET_TTL_HOURS = env.int("PASSWORD_RESET_TTL_HOURS", default=24)
+FRONTEND_URL = env("FRONTEND_URL", default="http://localhost:3000")
+DEFAULT_FROM_EMAIL = env("DEFAULT_FROM_EMAIL", default="noreply@jira-import.local")
+WORKSPACE_INVITE_TTL_HOURS = env.int("WORKSPACE_INVITE_TTL_HOURS", default=168)
