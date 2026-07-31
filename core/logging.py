@@ -11,6 +11,7 @@ SENSITIVE_KEYS = frozenset(
         "password",
         "token",
         "api_token",
+        "api_token_encrypted",
         "authorization",
         "secret",
         "secret_key",
