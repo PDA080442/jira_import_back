@@ -39,3 +39,13 @@ def test_openapi_schema_contains_auth_paths(api_client):
     paths = schema.get("paths", {})
     assert "/api/auth/login/" in paths
     assert "/api/me/" in paths
+
+
+def test_openapi_schema_contains_jira_paths(api_client):
+    schema = _fetch_openapi_schema(api_client)
+    paths = schema.get("paths", {})
+    assert "/api/workspaces/{workspace_id}/jira-connections/" in paths
+    assert "/api/workspaces/{workspace_id}/jira-connections/{id}/" in paths
+    assert "/api/workspaces/{workspace_id}/jira-connections/{id}/test/" in paths
+    assert "/api/workspaces/{workspace_id}/jira-connections/{id}/metadata/" in paths
+    assert "/api/workspaces/{workspace_id}/jira-connections/{id}/sync-metadata/" in paths
