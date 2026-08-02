@@ -64,6 +64,8 @@ def custom_exception_handler(exc, context):
         if response.status_code == status.HTTP_400_BAD_REQUEST and isinstance(response.data, dict):
             field_errors = _normalize_field_errors(response.data)
             message = "Invalid input."
+        elif response.status_code == status.HTTP_401_UNAUTHORIZED:
+            code, message = _resolve_401(response.data, message)
         return _json_response(
             response.status_code,
             build_error_payload(code=code, message=message, field_errors=field_errors),
@@ -96,6 +98,27 @@ def _normalize_field_errors(detail) -> dict:
     if isinstance(detail, list):
         return {"non_field_errors": [str(item) for item in detail]}
     return {"non_field_errors": [str(detail)]}
+
+
+def _resolve_401(data, default_message):
+    """Distinguish expired/invalid JWT so the frontend can redirect to login."""
+    if not isinstance(data, dict):
+        return "UNAUTHORIZED", default_message
+
+    detail = data.get("detail")
+    messages = data.get("messages")
+    is_jwt_error = getattr(detail, "code", None) == "token_not_valid" or messages is not None
+    if not is_jwt_error:
+        return "UNAUTHORIZED", default_message
+
+    text = ""
+    if isinstance(messages, list) and messages:
+        first = messages[0]
+        if isinstance(first, dict) and first.get("message"):
+            text = str(first["message"]).lower()
+    if "invalid" not in text and "expired" in text:
+        return "TOKEN_EXPIRED", "Access token expired. Please sign in again."
+    return "TOKEN_NOT_VALID", "Token is invalid. Please sign in again."
 
 
 def _extract_message(data) -> str:

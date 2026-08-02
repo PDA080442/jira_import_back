@@ -155,3 +155,165 @@ class JiraConnectionTestResultSerializer(serializers.Serializer):
     tested_at = serializers.DateTimeField()
     detail = serializers.CharField()
     account = JiraConnectionAccountSerializer(allow_null=True, required=False)
+
+
+class JiraIssueTypeSerializer(serializers.Serializer):
+    jira_id = serializers.CharField()
+    name = serializers.CharField()
+    hierarchy_level = serializers.IntegerField(allow_null=True)
+    is_subtask = serializers.BooleanField()
+    description = serializers.CharField()
+    icon_url = serializers.CharField()
+
+
+class JiraFieldSerializer(serializers.Serializer):
+    jira_id = serializers.CharField()
+    key = serializers.CharField()
+    name = serializers.CharField()
+    is_custom = serializers.BooleanField()
+    schema_type = serializers.CharField()
+    is_required = serializers.BooleanField()
+    template_field_type = serializers.CharField()
+    extra = serializers.JSONField()
+
+
+class JiraSprintSerializer(serializers.Serializer):
+    jira_sprint_id = serializers.CharField()
+    name = serializers.CharField()
+    state = serializers.CharField()
+    start_date = serializers.DateTimeField(allow_null=True)
+    end_date = serializers.DateTimeField(allow_null=True)
+    goal = serializers.CharField()
+    board_id = serializers.CharField()
+
+
+class JiraBoardSerializer(serializers.Serializer):
+    jira_board_id = serializers.CharField()
+    name = serializers.CharField()
+    board_type = serializers.CharField()
+    sprints = JiraSprintSerializer(many=True)
+
+
+class JiraMetadataItemSerializer(serializers.Serializer):
+    jira_id = serializers.CharField()
+    name = serializers.CharField()
+    extra = serializers.JSONField()
+
+
+class JiraProjectMetadataSerializer(serializers.Serializer):
+    connection_id = serializers.UUIDField()
+    project_id = serializers.CharField()
+    project_name = serializers.CharField()
+    project_key = serializers.CharField()
+    status = serializers.ChoiceField(choices=["pending", "syncing", "fresh", "failed"])
+    is_stale = serializers.BooleanField()
+    fetched_at = serializers.DateTimeField(allow_null=True)
+    ttl_seconds = serializers.IntegerField()
+    last_sync_started_at = serializers.DateTimeField(allow_null=True)
+    last_error = serializers.CharField()
+    issue_types = JiraIssueTypeSerializer(many=True)
+    fields = JiraFieldSerializer(many=True)
+    priorities = JiraMetadataItemSerializer(many=True)
+    statuses = JiraMetadataItemSerializer(many=True)
+    components = JiraMetadataItemSerializer(many=True)
+    labels = JiraMetadataItemSerializer(many=True)
+    boards = JiraBoardSerializer(many=True)
+
+    def to_representation(self, metadata):
+        from jira.models import JiraMetadataItemKind
+
+        items = list(metadata.items.all())
+        boards = []
+        for board in metadata.boards.all():
+            boards.append(
+                {
+                    "jira_board_id": board.jira_board_id,
+                    "name": board.name,
+                    "board_type": board.board_type,
+                    "sprints": [
+                        {
+                            "jira_sprint_id": sprint.jira_sprint_id,
+                            "name": sprint.name,
+                            "state": sprint.state,
+                            "start_date": sprint.start_date,
+                            "end_date": sprint.end_date,
+                            "goal": sprint.goal,
+                            "board_id": board.jira_board_id,
+                        }
+                        for sprint in board.sprints.all()
+                    ],
+                },
+            )
+
+        def items_by_kind(kind):
+            return [
+                {"jira_id": item.jira_id, "name": item.name, "extra": item.extra or {}}
+                for item in items
+                if item.kind == kind
+            ]
+
+        return {
+            "connection_id": metadata.connection_id,
+            "project_id": metadata.project_id,
+            "project_name": metadata.project_name,
+            "project_key": metadata.project_key or metadata.connection.project_key,
+            "status": metadata.status,
+            "is_stale": metadata.is_stale,
+            "fetched_at": metadata.fetched_at,
+            "ttl_seconds": metadata.ttl_seconds,
+            "last_sync_started_at": metadata.last_sync_started_at,
+            "last_error": metadata.last_error,
+            "issue_types": [
+                {
+                    "jira_id": issue_type.jira_id,
+                    "name": issue_type.name,
+                    "hierarchy_level": issue_type.hierarchy_level,
+                    "is_subtask": issue_type.is_subtask,
+                    "description": issue_type.description,
+                    "icon_url": issue_type.icon_url,
+                }
+                for issue_type in metadata.issue_types.all()
+            ],
+            "fields": [
+                {
+                    "jira_id": field.jira_id,
+                    "key": field.key,
+                    "name": field.name,
+                    "is_custom": field.is_custom,
+                    "schema_type": field.schema_type,
+                    "is_required": field.is_required,
+                    "template_field_type": field.template_field_type,
+                    "extra": field.extra or {},
+                }
+                for field in metadata.fields.all()
+            ],
+            "priorities": items_by_kind(JiraMetadataItemKind.PRIORITY),
+            "statuses": items_by_kind(JiraMetadataItemKind.STATUS),
+            "components": items_by_kind(JiraMetadataItemKind.COMPONENT),
+            "labels": items_by_kind(JiraMetadataItemKind.LABEL),
+            "boards": boards,
+        }
+
+
+class JiraMetadataSyncResponseSerializer(serializers.Serializer):
+    status = serializers.ChoiceField(choices=["pending", "syncing", "fresh", "failed"])
+    detail = serializers.CharField()
+
+
+class JiraGuideSerializer(serializers.Serializer):
+    slug = serializers.SlugField()
+    title = serializers.CharField()
+    summary = serializers.CharField()
+    locale = serializers.CharField()
+    version = serializers.IntegerField()
+    content = serializers.JSONField()
+    updated_at = serializers.DateTimeField()
+
+
+class JiraGuideListItemSerializer(serializers.Serializer):
+    slug = serializers.SlugField()
+    title = serializers.CharField()
+    summary = serializers.CharField()
+    locale = serializers.CharField()
+    version = serializers.IntegerField()
+    updated_at = serializers.DateTimeField()

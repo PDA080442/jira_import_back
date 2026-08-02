@@ -47,3 +47,5 @@ def test_openapi_schema_contains_jira_paths(api_client):
     assert "/api/workspaces/{workspace_id}/jira-connections/" in paths
     assert "/api/workspaces/{workspace_id}/jira-connections/{id}/" in paths
     assert "/api/workspaces/{workspace_id}/jira-connections/{id}/test/" in paths
+    assert "/api/workspaces/{workspace_id}/jira-connections/{id}/metadata/" in paths
+    assert "/api/workspaces/{workspace_id}/jira-connections/{id}/sync-metadata/" in paths

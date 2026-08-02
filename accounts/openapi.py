@@ -32,8 +32,8 @@ RegisterResponseSerializer = inline_serializer(
 TokenPairResponseSerializer = inline_serializer(
     name="TokenPairResponse",
     fields={
-        "access": serializers.CharField(help_text="JWT access token (default TTL: 15 minutes)."),
-        "refresh": serializers.CharField(help_text="JWT refresh token (default TTL: 7 days)."),
+        "access": serializers.CharField(help_text="JWT access token (default TTL: 7 days)."),
+        "refresh": serializers.CharField(help_text="JWT refresh token (default TTL: 30 days)."),
     },
 )
 

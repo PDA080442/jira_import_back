@@ -15,14 +15,24 @@ from jira.openapi import (
     jira_connection_list_schema,
     jira_connection_test_schema,
     jira_connection_update_schema,
+    jira_guide_get_schema,
+    jira_guide_list_schema,
+    jira_metadata_get_schema,
+    jira_metadata_sync_schema,
 )
 from jira.serializers import (
     JiraConnectionCreateSerializer,
     JiraConnectionSerializer,
     JiraConnectionTestResultSerializer,
     JiraConnectionUpdateSerializer,
+    JiraGuideListItemSerializer,
+    JiraGuideSerializer,
+    JiraMetadataSyncResponseSerializer,
+    JiraProjectMetadataSerializer,
 )
 from jira.services import connection as connection_service
+from jira.services import guide as guide_service
+from jira.services import metadata as metadata_service
 from jira.services import test as test_service
 
 
@@ -122,3 +132,47 @@ class JiraConnectionTestView(APIView):
         )
         result = test_service.run_connection_test(connection=connection, user=request.user)
         return Response(JiraConnectionTestResultSerializer(result).data)
+
+
+@extend_schema_view(get=jira_metadata_get_schema)
+class JiraMetadataView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, workspace_id, pk):
+        metadata = metadata_service.get_metadata(
+            workspace_id=workspace_id,
+            connection_id=pk,
+            user=request.user,
+        )
+        return Response(JiraProjectMetadataSerializer(metadata).data)
+
+
+@extend_schema_view(post=jira_metadata_sync_schema)
+class JiraMetadataSyncView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, workspace_id, pk):
+        result = metadata_service.start_metadata_sync(
+            workspace_id=workspace_id,
+            connection_id=pk,
+            user=request.user,
+        )
+        return Response(JiraMetadataSyncResponseSerializer(result).data, status=status.HTTP_202_ACCEPTED)
+
+
+@extend_schema_view(get=jira_guide_list_schema)
+class JiraGuideListView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        guides = guide_service.list_guides()
+        return Response(JiraGuideListItemSerializer(guides, many=True).data)
+
+
+@extend_schema_view(get=jira_guide_get_schema)
+class JiraGuideDetailView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, slug):
+        guide = guide_service.get_guide(slug=slug)
+        return Response(JiraGuideSerializer(guide).data)

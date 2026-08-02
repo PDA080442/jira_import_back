@@ -160,6 +160,21 @@ SPECTACULAR_SETTINGS = {
                 "API tokens encrypted at rest; never returned in API responses."
             ),
         },
+        {
+            "name": "Jira Metadata",
+            "description": (
+                "Cached Jira project metadata per connection: issue types, fields, "
+                "priorities, statuses, components, labels, boards, sprints. "
+                "Sync runs in background via Celery."
+            ),
+        },
+        {
+            "name": "Jira Guides",
+            "description": (
+                "Editable onboarding/help content stored in DB and fetched by the "
+                "frontend (e.g. Jira connection setup instructions)."
+            ),
+        },
     ],
     "APPEND_COMPONENTS": {
         "securitySchemes": {
@@ -231,8 +246,8 @@ CELERY_BEAT_SCHEDULER = "django_celery_beat.schedulers:DatabaseScheduler"
 HEALTHCHECK_CELERY_TIMEOUT = env.float("HEALTHCHECK_CELERY_TIMEOUT", default=1.0)
 
 SIMPLE_JWT = {
-    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=15),
-    "REFRESH_TOKEN_LIFETIME": timedelta(days=7),
+    "ACCESS_TOKEN_LIFETIME": timedelta(days=env.int("ACCESS_TOKEN_LIFETIME_DAYS", default=7)),
+    "REFRESH_TOKEN_LIFETIME": timedelta(days=env.int("REFRESH_TOKEN_LIFETIME_DAYS", default=30)),
     "ROTATE_REFRESH_TOKENS": False,
     "BLACKLIST_AFTER_ROTATION": True,
     "UPDATE_LAST_LOGIN": True,
