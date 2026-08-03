@@ -10,19 +10,26 @@ from core.openapi import (
     error_response,
 )
 from sources.serializers import (
+    ApplyPresetRequestSerializer,
     GoogleSheetRefreshResponseSerializer,
     GoogleSheetSourceCreateSerializer,
     GoogleSheetSourceListItemSerializer,
     GoogleSheetSourceSerializer,
+    PresetBindingSerializer,
     SourceFileListItemSerializer,
     SourceFileReparseRequestSerializer,
     SourceFileReparseResponseSerializer,
     SourceFileSerializer,
     SourceFileUploadSerializer,
+    SourcePresetCreateSerializer,
+    SourcePresetListItemSerializer,
+    SourcePresetSerializer,
+    SourcePresetUpdateSerializer,
 )
 
 SOURCE_FILES_TAG = "Source Files"
 GOOGLE_SHEET_SOURCES_TAG = "Google Sheet Sources"
+SOURCE_PRESETS_TAG = "Source Presets"
 
 WORKSPACE_ID_PATH = OpenApiParameter(
     name="workspace_id",
@@ -403,5 +410,196 @@ google_sheet_source_refresh_schema = extend_schema(
             "Refresh already in progress.",
             examples=[PARSE_IN_PROGRESS_EXAMPLE],
         ),
+    },
+)
+
+preset_example = OpenApiExample(
+    name="File preset",
+    value={
+        "id": "770e8400-e29b-41d4-a716-446655440002",
+        "name": "CSV Semicolon CP1251",
+        "description": "Russian CSV with semicolon delimiter",
+        "source_type": "file",
+        "settings": {
+            "delimiter": "semicolon",
+            "encoding": "cp1251",
+            "header_row": 0,
+            "selected_columns": ["Summary", "Priority"],
+        },
+        "version": 1,
+        "last_applied_at": None,
+        "is_active": True,
+        "created_at": "2026-08-03T12:00:00.000000Z",
+        "updated_at": "2026-08-03T12:00:00.000000Z",
+    },
+    response_only=True,
+)
+
+binding_applied_example = OpenApiExample(
+    name="Preset applied",
+    value={
+        "id": "880e8400-e29b-41d4-a716-446655440003",
+        "preset": {
+            "id": "770e8400-e29b-41d4-a716-446655440002",
+            "name": "CSV Semicolon CP1251",
+            "description": "",
+            "source_type": "file",
+            "version": 2,
+            "last_applied_at": "2026-08-03T12:05:00.000000Z",
+            "is_active": True,
+            "created_at": "2026-08-03T12:00:00.000000Z",
+            "updated_at": "2026-08-03T12:04:00.000000Z",
+        },
+        "source_type": "file",
+        "source_id": "550e8400-e29b-41d4-a716-446655440000",
+        "applied_version": 1,
+        "status": "applied",
+        "applied_settings": {"delimiter": "semicolon", "encoding": "cp1251"},
+        "last_applied_at": "2026-08-03T12:05:00.000000Z",
+        "last_error": "",
+        "is_stale": True,
+        "created_at": "2026-08-03T12:05:00.000000Z",
+        "updated_at": "2026-08-03T12:05:00.000000Z",
+    },
+    response_only=True,
+)
+
+source_preset_list_create_schema = {
+    "get": extend_schema(
+        tags=[SOURCE_PRESETS_TAG],
+        operation_id="source_preset_list",
+        summary="List source presets",
+        description="Returns active presets in the workspace. Optional filter by source_type.",
+        parameters=[
+            TRACE_ID_HEADER,
+            WORKSPACE_ID_PATH,
+            OpenApiParameter(
+                name="source_type",
+                type=str,
+                location=OpenApiParameter.QUERY,
+                description="Filter by file or google.",
+                required=False,
+            ),
+        ],
+        responses={
+            200: OpenApiResponse(response=SourcePresetListItemSerializer(many=True)),
+            401: API_ERROR_401,
+            404: API_ERROR_404,
+        },
+    ),
+    "post": extend_schema(
+        tags=[SOURCE_PRESETS_TAG],
+        operation_id="source_preset_create",
+        summary="Create source preset",
+        description="Creates a named preset. Requires editor+.",
+        parameters=[TRACE_ID_HEADER, WORKSPACE_ID_PATH],
+        request=SourcePresetCreateSerializer,
+        responses={
+            201: OpenApiResponse(response=SourcePresetSerializer, examples=[preset_example]),
+            400: API_ERROR_400,
+            401: API_ERROR_401,
+            403: API_ERROR_403,
+            404: API_ERROR_404,
+        },
+    ),
+}
+
+source_preset_recent_schema = extend_schema(
+    tags=[SOURCE_PRESETS_TAG],
+    operation_id="source_preset_recent",
+    summary="List recently used preset configurations",
+    description="Returns recent PresetBinding entries ordered by last_applied_at.",
+    parameters=[
+        TRACE_ID_HEADER,
+        WORKSPACE_ID_PATH,
+        OpenApiParameter(
+            name="limit",
+            type=int,
+            location=OpenApiParameter.QUERY,
+            description="Max entries (default 10).",
+            required=False,
+        ),
+    ],
+    responses={
+        200: OpenApiResponse(response=PresetBindingSerializer(many=True), examples=[binding_applied_example]),
+        401: API_ERROR_401,
+        404: API_ERROR_404,
+    },
+)
+
+source_preset_detail_schema = {
+    "get": extend_schema(
+        tags=[SOURCE_PRESETS_TAG],
+        operation_id="source_preset_get",
+        summary="Get source preset",
+        parameters=[TRACE_ID_HEADER, WORKSPACE_ID_PATH, SOURCE_ID_PATH],
+        responses={
+            200: OpenApiResponse(response=SourcePresetSerializer, examples=[preset_example]),
+            401: API_ERROR_401,
+            404: API_ERROR_404,
+        },
+    ),
+    "patch": extend_schema(
+        tags=[SOURCE_PRESETS_TAG],
+        operation_id="source_preset_update",
+        summary="Update source preset",
+        description="Changing settings bumps preset version and marks bindings stale.",
+        parameters=[TRACE_ID_HEADER, WORKSPACE_ID_PATH, SOURCE_ID_PATH],
+        request=SourcePresetUpdateSerializer,
+        responses={
+            200: OpenApiResponse(response=SourcePresetSerializer),
+            400: API_ERROR_400,
+            401: API_ERROR_401,
+            403: API_ERROR_403,
+            404: API_ERROR_404,
+        },
+    ),
+}
+
+source_preset_deactivate_schema = extend_schema(
+    tags=[SOURCE_PRESETS_TAG],
+    operation_id="source_preset_deactivate",
+    summary="Deactivate source preset",
+    parameters=[TRACE_ID_HEADER, WORKSPACE_ID_PATH, SOURCE_ID_PATH],
+    request=None,
+    responses={
+        200: OpenApiResponse(response=SourcePresetSerializer),
+        401: API_ERROR_401,
+        403: API_ERROR_403,
+        404: API_ERROR_404,
+    },
+)
+
+source_file_apply_preset_schema = extend_schema(
+    tags=[SOURCE_FILES_TAG],
+    operation_id="source_file_apply_preset",
+    summary="Apply preset to source file",
+    description="Applies preset settings, updates binding and triggers re-parse.",
+    parameters=[TRACE_ID_HEADER, WORKSPACE_ID_PATH, SOURCE_ID_PATH],
+    request=ApplyPresetRequestSerializer,
+    responses={
+        200: OpenApiResponse(response=PresetBindingSerializer, examples=[binding_applied_example]),
+        400: API_ERROR_400,
+        401: API_ERROR_401,
+        403: API_ERROR_403,
+        404: API_ERROR_404,
+        409: error_response(409, "Parse in progress.", examples=[PARSE_IN_PROGRESS_EXAMPLE]),
+    },
+)
+
+google_sheet_source_apply_preset_schema = extend_schema(
+    tags=[GOOGLE_SHEET_SOURCES_TAG],
+    operation_id="google_sheet_source_apply_preset",
+    summary="Apply preset to Google Sheet source",
+    description="Applies preset settings, updates binding and triggers snapshot refresh.",
+    parameters=[TRACE_ID_HEADER, WORKSPACE_ID_PATH, SOURCE_ID_PATH],
+    request=ApplyPresetRequestSerializer,
+    responses={
+        200: OpenApiResponse(response=PresetBindingSerializer, examples=[binding_applied_example]),
+        400: API_ERROR_400,
+        401: API_ERROR_401,
+        403: API_ERROR_403,
+        404: API_ERROR_404,
+        409: error_response(409, "Refresh in progress.", examples=[PARSE_IN_PROGRESS_EXAMPLE]),
     },
 )

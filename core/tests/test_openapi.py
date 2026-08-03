@@ -67,3 +67,14 @@ def test_openapi_schema_contains_google_sheet_source_paths(api_client):
     assert "/api/workspaces/{workspace_id}/google-sheet-sources/{id}/" in paths
     assert "/api/workspaces/{workspace_id}/google-sheet-sources/{id}/deactivate/" in paths
     assert "/api/workspaces/{workspace_id}/google-sheet-sources/{id}/refresh/" in paths
+    assert "/api/workspaces/{workspace_id}/google-sheet-sources/{id}/apply-preset/" in paths
+
+
+def test_openapi_schema_contains_source_preset_paths(api_client):
+    schema = _fetch_openapi_schema(api_client)
+    paths = schema.get("paths", {})
+    assert "/api/workspaces/{workspace_id}/source-presets/" in paths
+    assert "/api/workspaces/{workspace_id}/source-presets/recent/" in paths
+    assert "/api/workspaces/{workspace_id}/source-presets/{id}/" in paths
+    assert "/api/workspaces/{workspace_id}/source-presets/{id}/deactivate/" in paths
+    assert "/api/workspaces/{workspace_id}/source-files/{id}/apply-preset/" in paths

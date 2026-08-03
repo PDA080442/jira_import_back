@@ -101,3 +101,19 @@ def get_max_file_size_bytes() -> int:
 
 def get_preview_rows() -> int:
     return getattr(settings, "SOURCE_FILE_PREVIEW_ROWS", 20)
+
+
+PRESET_MAX_NAME_LEN = 255
+PRESET_SETTINGS_KEYS = frozenset(
+    {
+        "sheet",
+        "header_row",
+        "delimiter",
+        "encoding",
+        "selected_columns",
+        "ignore_rows",
+        "preview_rows",
+    },
+)
+PRESET_FILE_ONLY_KEYS = frozenset({"delimiter", "encoding"})
+PRESET_RECENT_DEFAULT_LIMIT = 10

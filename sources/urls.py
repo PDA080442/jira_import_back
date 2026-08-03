@@ -2,14 +2,20 @@
 from django.urls import path
 
 from sources.views import (
+    GoogleSheetSourceApplyPresetView,
     GoogleSheetSourceDeactivateView,
     GoogleSheetSourceDetailView,
     GoogleSheetSourceListCreateView,
     GoogleSheetSourceRefreshView,
+    RecentConfigsView,
+    SourceFileApplyPresetView,
     SourceFileDeactivateView,
     SourceFileDetailView,
     SourceFileListCreateView,
     SourceFileReparseView,
+    SourcePresetDeactivateView,
+    SourcePresetDetailView,
+    SourcePresetListCreateView,
 )
 
 urlpatterns = [
@@ -34,6 +40,31 @@ urlpatterns = [
         name="source-file-reparse",
     ),
     path(
+        "workspaces/<uuid:workspace_id>/source-files/<uuid:pk>/apply-preset/",
+        SourceFileApplyPresetView.as_view(),
+        name="source-file-apply-preset",
+    ),
+    path(
+        "workspaces/<uuid:workspace_id>/source-presets/recent/",
+        RecentConfigsView.as_view(),
+        name="source-preset-recent",
+    ),
+    path(
+        "workspaces/<uuid:workspace_id>/source-presets/",
+        SourcePresetListCreateView.as_view(),
+        name="source-preset-list-create",
+    ),
+    path(
+        "workspaces/<uuid:workspace_id>/source-presets/<uuid:pk>/deactivate/",
+        SourcePresetDeactivateView.as_view(),
+        name="source-preset-deactivate",
+    ),
+    path(
+        "workspaces/<uuid:workspace_id>/source-presets/<uuid:pk>/",
+        SourcePresetDetailView.as_view(),
+        name="source-preset-detail",
+    ),
+    path(
         "workspaces/<uuid:workspace_id>/google-sheet-sources/",
         GoogleSheetSourceListCreateView.as_view(),
         name="google-sheet-source-list-create",
@@ -52,5 +83,10 @@ urlpatterns = [
         "workspaces/<uuid:workspace_id>/google-sheet-sources/<uuid:pk>/refresh/",
         GoogleSheetSourceRefreshView.as_view(),
         name="google-sheet-source-refresh",
+    ),
+    path(
+        "workspaces/<uuid:workspace_id>/google-sheet-sources/<uuid:pk>/apply-preset/",
+        GoogleSheetSourceApplyPresetView.as_view(),
+        name="google-sheet-source-apply-preset",
     ),
 ]

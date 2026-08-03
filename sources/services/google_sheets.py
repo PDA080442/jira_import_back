@@ -8,8 +8,9 @@ from core.exceptions import ApiError
 from core.logging import get_logger
 from rest_framework import status
 from sources.constants import extract_spreadsheet_id
-from sources.models import GoogleSheetSource, SourceParseStatus
+from sources.models import GoogleSheetSource, PresetSourceType, SourceParseStatus
 from sources.services.access import _require_editor, require_member
+from sources.services import presets as presets_service
 from tenants.services.workspace import get_workspace
 
 logger = get_logger("sources.google_sheets")
@@ -47,9 +48,23 @@ def create_google_source(
     spreadsheet_url: str,
     name: str | None = None,
     worksheet_title: str = "",
+    preset_id=None,
 ) -> GoogleSheetSource:
     workspace = get_workspace(workspace_id=workspace_id, user=user)
     _require_editor(user=user, workspace=workspace, action="create_google_sheet")
+
+    preset = presets_service.resolve_preset_for_create(
+        workspace_id=workspace_id,
+        user=user,
+        preset_id=preset_id,
+        expected_source_type=PresetSourceType.GOOGLE,
+    )
+    preset_settings = preset.settings if preset else {}
+    if preset:
+        worksheet_title = presets_service.preset_worksheet_for_google_create(
+            preset,
+            worksheet_title=worksheet_title or "",
+        )
 
     spreadsheet_id = extract_spreadsheet_id(spreadsheet_url)
     if not spreadsheet_id:
@@ -67,8 +82,19 @@ def create_google_source(
         spreadsheet_url=_build_spreadsheet_url(spreadsheet_id),
         worksheet_title=worksheet_title or "",
         status=SourceParseStatus.PENDING,
+        applied_preset=preset,
+        applied_settings=preset_settings if preset else {},
         created_by=user,
     )
+
+    if preset:
+        presets_service.create_initial_binding(
+            preset=preset,
+            user=user,
+            source_type=PresetSourceType.GOOGLE,
+            source_id=source.id,
+            settings=preset_settings,
+        )
 
     from sources.tasks import refresh_google_sheet_snapshot
 

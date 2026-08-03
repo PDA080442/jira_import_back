@@ -10,9 +10,13 @@ from accounts.tests.factories import ActiveUserFactory
 from sources.models import (
     GoogleSheetSource,
     GoogleSheetTab,
+    PresetBinding,
+    PresetBindingStatus,
+    PresetSourceType,
     SourceFile,
     SourceFileType,
     SourceParseStatus,
+    SourcePreset,
     SourceSheet,
 )
 from tenants.tests.factories import create_workspace_with_owner
@@ -151,3 +155,43 @@ def create_google_sheet_source(*, workspace=None, user=None, **kwargs):
             f"https://docs.google.com/spreadsheets/d/{defaults['spreadsheet_id']}/edit"
         )
     return GoogleSheetSource.objects.create(**defaults)
+
+
+class SourcePresetFactory(DjangoModelFactory):
+    class Meta:
+        model = SourcePreset
+
+    workspace = factory.SubFactory("tenants.tests.factories.WorkspaceFactory")
+    name = factory.Sequence(lambda n: f"Preset {n}")
+    source_type = PresetSourceType.FILE
+    settings = factory.LazyFunction(
+        lambda: {"delimiter": "semicolon", "encoding": "utf-8", "header_row": 0},
+    )
+    version = 1
+    created_by = factory.LazyAttribute(lambda o: o.workspace.owner)
+
+
+class PresetBindingFactory(DjangoModelFactory):
+    class Meta:
+        model = PresetBinding
+
+    workspace = factory.SubFactory("tenants.tests.factories.WorkspaceFactory")
+    preset = factory.SubFactory(SourcePresetFactory)
+    source_type = PresetSourceType.FILE
+    source_id = factory.LazyFunction(lambda: SourceFileFactory().id)
+    applied_version = 1
+    status = PresetBindingStatus.APPLIED
+    applied_settings = factory.LazyFunction(lambda: {"delimiter": "semicolon"})
+    applied_by = factory.LazyAttribute(lambda o: o.workspace.owner)
+
+
+def create_source_preset(*, workspace=None, user=None, **kwargs):
+    user = user or ActiveUserFactory()
+    workspace = workspace or create_workspace_with_owner(user=user)
+    defaults = {
+        "workspace": workspace,
+        "created_by": user,
+        "source_type": PresetSourceType.FILE,
+    }
+    defaults.update(kwargs)
+    return SourcePreset.objects.create(**defaults)

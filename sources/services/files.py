@@ -21,8 +21,9 @@ from sources.constants import (
     normalize_encoding_name,
     resolve_delimiter_choice,
 )
-from sources.models import SourceFile, SourceFileType, SourceParseStatus
+from sources.models import SourceFile, SourceFileType, PresetSourceType, SourceParseStatus
 from sources.services.access import _require_editor, require_member
+from sources.services import presets as presets_service
 from tenants.services.workspace import get_workspace
 
 logger = get_logger("sources.files")
@@ -141,9 +142,27 @@ def create_source_file(
     name: str | None = None,
     delimiter: str | None = None,
     encoding: str | None = None,
+    preset_id=None,
 ) -> SourceFile:
     workspace = get_workspace(workspace_id=workspace_id, user=user)
     _require_editor(user=user, workspace=workspace, action="upload")
+
+    preset = presets_service.resolve_preset_for_create(
+        workspace_id=workspace_id,
+        user=user,
+        preset_id=preset_id,
+        expected_source_type=PresetSourceType.FILE,
+    )
+    if preset:
+        preset_delim, preset_enc, preset_settings = presets_service.preset_settings_for_file_create(
+            preset,
+            delimiter=delimiter,
+            encoding=encoding,
+        )
+        delimiter = preset_delim
+        encoding = preset_enc
+    else:
+        preset_settings = {}
 
     filename = upload.name or "upload"
     file_type = _validate_upload(upload=upload, filename=filename)
@@ -163,10 +182,21 @@ def create_source_file(
         status=SourceParseStatus.PENDING,
         delimiter_override=delimiter_override,
         encoding_override=encoding_override,
+        applied_preset=preset,
+        applied_settings=preset_settings if preset else {},
         created_by=user,
     )
     source.file.save(os.path.basename(filename), upload, save=False)
     source.save()
+
+    if preset:
+        presets_service.create_initial_binding(
+            preset=preset,
+            user=user,
+            source_type=PresetSourceType.FILE,
+            source_id=source.id,
+            settings=preset_settings,
+        )
 
     from sources.tasks import parse_source_file
 
