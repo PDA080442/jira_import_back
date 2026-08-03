@@ -3,13 +3,38 @@ import os
 
 from rest_framework import serializers
 
-from sources.constants import ALLOWED_CONTENT_TYPES, ALLOWED_EXTENSIONS, extract_spreadsheet_id, get_max_file_size_bytes
+from sources.constants import (
+    ALLOWED_CONTENT_TYPES,
+    ALLOWED_EXTENSIONS,
+    CSV_DELIMITER_CHOICES,
+    SUPPORTED_ENCODINGS,
+    extract_spreadsheet_id,
+    get_max_file_size_bytes,
+    is_supported_encoding,
+    normalize_encoding_name,
+)
 from sources.models import GoogleSheetSource, GoogleSheetTab, SourceFile, SourceSheet
 
 
 class SourceFileUploadSerializer(serializers.Serializer):
     file = serializers.FileField()
     name = serializers.CharField(max_length=255, required=False, allow_blank=True)
+    delimiter = serializers.ChoiceField(
+        choices=list(CSV_DELIMITER_CHOICES.keys()),
+        required=False,
+        allow_blank=True,
+    )
+    encoding = serializers.CharField(max_length=32, required=False, allow_blank=True)
+
+    def validate_encoding(self, value):
+        if not value:
+            return value
+        normalized = normalize_encoding_name(value)
+        if not is_supported_encoding(normalized):
+            raise serializers.ValidationError(
+                f"Supported encodings: {', '.join(sorted(SUPPORTED_ENCODINGS))}.",
+            )
+        return normalized
 
     def validate_file(self, upload):
         filename = upload.name or ""
@@ -28,6 +53,25 @@ class SourceFileUploadSerializer(serializers.Serializer):
             raise serializers.ValidationError(f"Unsupported content type: {content_type}.")
 
         return upload
+
+
+class SourceFileReparseRequestSerializer(serializers.Serializer):
+    delimiter = serializers.ChoiceField(
+        choices=list(CSV_DELIMITER_CHOICES.keys()),
+        required=False,
+        allow_blank=True,
+    )
+    encoding = serializers.CharField(max_length=32, required=False, allow_blank=True)
+
+    def validate_encoding(self, value):
+        if not value:
+            return value
+        normalized = normalize_encoding_name(value)
+        if not is_supported_encoding(normalized):
+            raise serializers.ValidationError(
+                f"Supported encodings: {', '.join(sorted(SUPPORTED_ENCODINGS))}.",
+            )
+        return normalized
 
 
 class SourceSheetSerializer(serializers.ModelSerializer):
@@ -58,6 +102,10 @@ class SourceFileListItemSerializer(serializers.ModelSerializer):
             "sheet_count",
             "encoding",
             "delimiter",
+            "encoding_override",
+            "delimiter_override",
+            "encoding_confidence",
+            "warnings",
             "error_message",
             "parse_started_at",
             "parsed_at",
@@ -83,6 +131,10 @@ class SourceFileSerializer(serializers.ModelSerializer):
             "status",
             "encoding",
             "delimiter",
+            "encoding_override",
+            "delimiter_override",
+            "encoding_confidence",
+            "warnings",
             "sheet_count",
             "error_message",
             "parse_started_at",

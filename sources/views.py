@@ -22,6 +22,7 @@ from sources.serializers import (
     GoogleSheetSourceListItemSerializer,
     GoogleSheetSourceSerializer,
     SourceFileListItemSerializer,
+    SourceFileReparseRequestSerializer,
     SourceFileReparseResponseSerializer,
     SourceFileSerializer,
     SourceFileUploadSerializer,
@@ -55,6 +56,8 @@ class SourceFileListCreateView(APIView):
             user=request.user,
             upload=data["file"],
             name=data.get("name") or None,
+            delimiter=data.get("delimiter") or None,
+            encoding=data.get("encoding") or None,
         )
         return Response(
             SourceFileSerializer(source).data,
@@ -101,7 +104,15 @@ class SourceFileReparseView(APIView):
             source_id=pk,
             user=request.user,
         )
-        result = files_service.start_reparse(source=source, user=request.user)
+        serializer = SourceFileReparseRequestSerializer(data=request.data or {})
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+        result = files_service.start_reparse(
+            source=source,
+            user=request.user,
+            delimiter=data.get("delimiter") if "delimiter" in data else None,
+            encoding=data.get("encoding") if "encoding" in data else None,
+        )
         return Response(
             SourceFileReparseResponseSerializer(result).data,
             status=status.HTTP_202_ACCEPTED,

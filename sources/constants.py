@@ -17,6 +17,64 @@ ALLOWED_CONTENT_TYPES = {
 }
 
 CSV_SNIFF_BYTES = 65536
+CSV_SNIFF_DELIMITERS = ",;\t|"
+CSV_ENCODING_MIN_CONFIDENCE = 0.6
+
+CSV_DELIMITER_CHOICES = {
+    "comma": ",",
+    "semicolon": ";",
+    "tab": "\t",
+    "pipe": "|",
+}
+DELIMITER_TO_CHOICE = {v: k for k, v in CSV_DELIMITER_CHOICES.items()}
+
+SUPPORTED_ENCODINGS = frozenset(
+    {
+        "utf-8",
+        "utf-8-sig",
+        "utf-16",
+        "utf-16-le",
+        "utf-16-be",
+        "cp1251",
+        "windows-1251",
+        "latin-1",
+        "iso-8859-1",
+        "ascii",
+    },
+)
+
+# Parse warning codes returned to frontend in SourceFile.warnings
+WARN_BOM_DETECTED = "BOM_DETECTED"
+WARN_ENCODING_LOW_CONFIDENCE = "ENCODING_LOW_CONFIDENCE"
+WARN_DECODE_REPLACED = "DECODE_REPLACED"
+WARN_DELIMITER_GUESS_FAILED = "DELIMITER_GUESS_FAILED"
+WARN_RAGGED_ROWS = "RAGGED_ROWS"
+WARN_ENCODING_OVERRIDE_USED = "ENCODING_OVERRIDE_USED"
+WARN_DELIMITER_OVERRIDE_USED = "DELIMITER_OVERRIDE_USED"
+
+
+def resolve_delimiter_choice(choice: str) -> str:
+    """Map API delimiter choice (comma/semicolon/tab/pipe) to character."""
+    key = (choice or "").strip().lower()
+    if key not in CSV_DELIMITER_CHOICES:
+        raise ValueError(f"Unsupported delimiter: {choice}")
+    return CSV_DELIMITER_CHOICES[key]
+
+
+def normalize_encoding_name(encoding: str) -> str:
+    value = (encoding or "").strip().lower()
+    aliases = {
+        "utf8": "utf-8",
+        "utf-8-sig": "utf-8-sig",
+        "windows-1251": "cp1251",
+        "iso-8859-1": "latin-1",
+    }
+    return aliases.get(value, value)
+
+
+def is_supported_encoding(encoding: str) -> bool:
+    return normalize_encoding_name(encoding) in SUPPORTED_ENCODINGS
+
 
 GOOGLE_SHEETS_URL_RE = re.compile(
     r"(?:https?://)?(?:docs\.google\.com/spreadsheets/d/|spreadsheets/d/)"
