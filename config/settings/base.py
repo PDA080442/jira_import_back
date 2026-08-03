@@ -112,6 +112,11 @@ STATIC_ROOT = BASE_DIR / "staticfiles"
 MEDIA_URL = "media/"
 MEDIA_ROOT = BASE_DIR / "media"
 
+SOURCE_FILE_MAX_SIZE_BYTES = env.int("SOURCE_FILE_MAX_SIZE_BYTES", default=10 * 1024 * 1024)
+SOURCE_FILE_PREVIEW_ROWS = env.int("SOURCE_FILE_PREVIEW_ROWS", default=20)
+FILE_UPLOAD_MAX_MEMORY_SIZE = max(SOURCE_FILE_MAX_SIZE_BYTES, 2621440)
+DATA_UPLOAD_MAX_MEMORY_SIZE = max(SOURCE_FILE_MAX_SIZE_BYTES, 2621440)
+
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 AUTH_USER_MODEL = "accounts.User"
@@ -173,6 +178,13 @@ SPECTACULAR_SETTINGS = {
             "description": (
                 "Editable onboarding/help content stored in DB and fetched by the "
                 "frontend (e.g. Jira connection setup instructions)."
+            ),
+        },
+        {
+            "name": "Source Files",
+            "description": (
+                "Excel/CSV file uploads per workspace. Upload returns immediately; "
+                "parsing runs in Celery and exposes sheets, columns, and preview rows."
             ),
         },
     ],
