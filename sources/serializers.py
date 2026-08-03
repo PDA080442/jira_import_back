@@ -3,8 +3,8 @@ import os
 
 from rest_framework import serializers
 
-from sources.constants import ALLOWED_CONTENT_TYPES, ALLOWED_EXTENSIONS, get_max_file_size_bytes
-from sources.models import SourceFile, SourceSheet
+from sources.constants import ALLOWED_CONTENT_TYPES, ALLOWED_EXTENSIONS, extract_spreadsheet_id, get_max_file_size_bytes
+from sources.models import GoogleSheetSource, GoogleSheetTab, SourceFile, SourceSheet
 
 
 class SourceFileUploadSerializer(serializers.Serializer):
@@ -96,5 +96,84 @@ class SourceFileSerializer(serializers.ModelSerializer):
 
 
 class SourceFileReparseResponseSerializer(serializers.Serializer):
+    status = serializers.CharField()
+    detail = serializers.CharField()
+
+
+class GoogleSheetSourceCreateSerializer(serializers.Serializer):
+    spreadsheet_url = serializers.CharField(max_length=512)
+    name = serializers.CharField(max_length=255, required=False, allow_blank=True)
+    worksheet_title = serializers.CharField(max_length=255, required=False, allow_blank=True)
+
+    def validate_spreadsheet_url(self, value):
+        spreadsheet_id = extract_spreadsheet_id(value)
+        if not spreadsheet_id:
+            raise serializers.ValidationError(
+                "Invalid Google Sheets URL or spreadsheet ID.",
+            )
+        return value
+
+
+class GoogleSheetTabSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = GoogleSheetTab
+        fields = (
+            "id",
+            "index",
+            "name",
+            "row_count",
+            "column_count",
+            "columns",
+            "preview_rows",
+        )
+        read_only_fields = fields
+
+
+class GoogleSheetSourceListItemSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = GoogleSheetSource
+        fields = (
+            "id",
+            "name",
+            "spreadsheet_id",
+            "spreadsheet_url",
+            "worksheet_title",
+            "status",
+            "sheet_count",
+            "error_message",
+            "last_sync_started_at",
+            "synced_at",
+            "is_active",
+            "created_at",
+            "updated_at",
+        )
+        read_only_fields = fields
+
+
+class GoogleSheetSourceSerializer(serializers.ModelSerializer):
+    tabs = GoogleSheetTabSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = GoogleSheetSource
+        fields = (
+            "id",
+            "name",
+            "spreadsheet_id",
+            "spreadsheet_url",
+            "worksheet_title",
+            "status",
+            "sheet_count",
+            "error_message",
+            "last_sync_started_at",
+            "synced_at",
+            "is_active",
+            "created_at",
+            "updated_at",
+            "tabs",
+        )
+        read_only_fields = fields
+
+
+class GoogleSheetRefreshResponseSerializer(serializers.Serializer):
     status = serializers.CharField()
     detail = serializers.CharField()

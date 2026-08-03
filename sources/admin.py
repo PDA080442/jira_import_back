@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from sources.models import SourceFile, SourceSheet
+from sources.models import GoogleSheetSource, GoogleSheetTab, SourceFile, SourceSheet
 
 
 class SourceSheetInline(admin.TabularInline):
@@ -21,4 +21,40 @@ class SourceFileAdmin(admin.ModelAdmin):
 @admin.register(SourceSheet)
 class SourceSheetAdmin(admin.ModelAdmin):
     list_display = ("name", "source_file", "index", "row_count", "column_count")
+    search_fields = ("name",)
+
+
+class GoogleSheetTabInline(admin.TabularInline):
+    model = GoogleSheetTab
+    extra = 0
+    readonly_fields = ("id", "index", "name", "row_count", "column_count")
+
+
+@admin.register(GoogleSheetSource)
+class GoogleSheetSourceAdmin(admin.ModelAdmin):
+    list_display = (
+        "name",
+        "workspace",
+        "spreadsheet_id",
+        "status",
+        "is_active",
+        "sheet_count",
+        "updated_at",
+    )
+    list_filter = ("status", "is_active")
+    search_fields = ("name", "spreadsheet_id")
+    readonly_fields = (
+        "id",
+        "created_at",
+        "updated_at",
+        "last_sync_started_at",
+        "synced_at",
+        "created_by",
+    )
+    inlines = [GoogleSheetTabInline]
+
+
+@admin.register(GoogleSheetTab)
+class GoogleSheetTabAdmin(admin.ModelAdmin):
+    list_display = ("name", "source", "index", "row_count", "column_count")
     search_fields = ("name",)

@@ -10,6 +10,10 @@ from core.openapi import (
     error_response,
 )
 from sources.serializers import (
+    GoogleSheetRefreshResponseSerializer,
+    GoogleSheetSourceCreateSerializer,
+    GoogleSheetSourceListItemSerializer,
+    GoogleSheetSourceSerializer,
     SourceFileListItemSerializer,
     SourceFileReparseResponseSerializer,
     SourceFileSerializer,
@@ -17,6 +21,7 @@ from sources.serializers import (
 )
 
 SOURCE_FILES_TAG = "Source Files"
+GOOGLE_SHEET_SOURCES_TAG = "Google Sheet Sources"
 
 WORKSPACE_ID_PATH = OpenApiParameter(
     name="workspace_id",
@@ -228,6 +233,157 @@ source_file_reparse_schema = extend_schema(
         409: error_response(
             409,
             "Parse already in progress.",
+            examples=[PARSE_IN_PROGRESS_EXAMPLE],
+        ),
+    },
+)
+
+google_sheet_pending_example = OpenApiExample(
+    name="Google source pending",
+    value={
+        "id": "550e8400-e29b-41d4-a716-446655440000",
+        "name": "Backlog Sheet",
+        "spreadsheet_id": "1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms",
+        "spreadsheet_url": "https://docs.google.com/spreadsheets/d/1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms/edit",
+        "worksheet_title": "",
+        "status": "pending",
+        "sheet_count": 0,
+        "error_message": "",
+        "last_sync_started_at": None,
+        "synced_at": None,
+        "is_active": True,
+        "created_at": "2026-08-03T12:00:00.000000Z",
+        "updated_at": "2026-08-03T12:00:00.000000Z",
+        "tabs": [],
+    },
+    response_only=True,
+)
+
+google_sheet_ready_example = OpenApiExample(
+    name="Google source ready",
+    value={
+        "id": "550e8400-e29b-41d4-a716-446655440000",
+        "name": "Backlog Sheet",
+        "spreadsheet_id": "1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms",
+        "spreadsheet_url": "https://docs.google.com/spreadsheets/d/1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms/edit",
+        "worksheet_title": "",
+        "status": "ready",
+        "sheet_count": 1,
+        "error_message": "",
+        "last_sync_started_at": "2026-08-03T12:00:01.000000Z",
+        "synced_at": "2026-08-03T12:00:02.000000Z",
+        "is_active": True,
+        "created_at": "2026-08-03T12:00:00.000000Z",
+        "updated_at": "2026-08-03T12:00:02.000000Z",
+        "tabs": [
+            {
+                "id": "660e8400-e29b-41d4-a716-446655440001",
+                "index": 0,
+                "name": "Sheet1",
+                "row_count": 101,
+                "column_count": 3,
+                "columns": [
+                    {"index": 0, "name": "Summary"},
+                    {"index": 1, "name": "Priority"},
+                ],
+                "preview_rows": [["Fix login", "High"]],
+            },
+        ],
+    },
+    response_only=True,
+)
+
+google_sheet_refresh_accepted_example = OpenApiExample(
+    name="Refresh accepted",
+    value={"status": "pending", "detail": "Google Sheet snapshot refresh started."},
+    response_only=True,
+)
+
+google_sheet_source_list_create_schema = {
+    "get": extend_schema(
+        tags=[GOOGLE_SHEET_SOURCES_TAG],
+        operation_id="google_sheet_source_list",
+        summary="List Google Sheet sources",
+        description="Returns active Google Sheet sources in the workspace. Any member can read.",
+        parameters=[TRACE_ID_HEADER, WORKSPACE_ID_PATH],
+        responses={
+            200: OpenApiResponse(response=GoogleSheetSourceListItemSerializer(many=True)),
+            401: API_ERROR_401,
+            404: API_ERROR_404,
+        },
+    ),
+    "post": extend_schema(
+        tags=[GOOGLE_SHEET_SOURCES_TAG],
+        operation_id="google_sheet_source_create",
+        summary="Connect Google Sheet source",
+        description=(
+            "Connects a Google Sheet by URL or spreadsheet ID. Snapshot refresh runs "
+            "asynchronously via Celery using the global service account. Requires editor+."
+        ),
+        parameters=[TRACE_ID_HEADER, WORKSPACE_ID_PATH],
+        request=GoogleSheetSourceCreateSerializer,
+        responses={
+            201: OpenApiResponse(
+                response=GoogleSheetSourceSerializer,
+                examples=[google_sheet_pending_example],
+            ),
+            400: API_ERROR_400,
+            401: API_ERROR_401,
+            403: API_ERROR_403,
+            404: API_ERROR_404,
+        },
+    ),
+}
+
+google_sheet_source_detail_schema = extend_schema(
+    tags=[GOOGLE_SHEET_SOURCES_TAG],
+    operation_id="google_sheet_source_get",
+    summary="Get Google Sheet source with tabs",
+    description="Returns source details including tabs, columns, and preview when status is `ready`.",
+    parameters=[TRACE_ID_HEADER, WORKSPACE_ID_PATH, SOURCE_ID_PATH],
+    responses={
+        200: OpenApiResponse(
+            response=GoogleSheetSourceSerializer,
+            examples=[google_sheet_ready_example, google_sheet_pending_example],
+        ),
+        401: API_ERROR_401,
+        404: API_ERROR_404,
+    },
+)
+
+google_sheet_source_deactivate_schema = extend_schema(
+    tags=[GOOGLE_SHEET_SOURCES_TAG],
+    operation_id="google_sheet_source_deactivate",
+    summary="Deactivate Google Sheet source (soft delete)",
+    description="Marks source as inactive. Requires editor+.",
+    parameters=[TRACE_ID_HEADER, WORKSPACE_ID_PATH, SOURCE_ID_PATH],
+    request=None,
+    responses={
+        200: OpenApiResponse(response=GoogleSheetSourceSerializer),
+        401: API_ERROR_401,
+        403: API_ERROR_403,
+        404: API_ERROR_404,
+    },
+)
+
+google_sheet_source_refresh_schema = extend_schema(
+    tags=[GOOGLE_SHEET_SOURCES_TAG],
+    operation_id="google_sheet_source_refresh",
+    summary="Refresh Google Sheet snapshot",
+    description="Triggers background snapshot refresh. Returns 409 if refresh is already in progress.",
+    parameters=[TRACE_ID_HEADER, WORKSPACE_ID_PATH, SOURCE_ID_PATH],
+    request=None,
+    responses={
+        202: OpenApiResponse(
+            response=GoogleSheetRefreshResponseSerializer,
+            examples=[google_sheet_refresh_accepted_example],
+        ),
+        401: API_ERROR_401,
+        403: API_ERROR_403,
+        404: API_ERROR_404,
+        409: error_response(
+            409,
+            "Refresh already in progress.",
             examples=[PARSE_IN_PROGRESS_EXAMPLE],
         ),
     },
