@@ -7,7 +7,14 @@ from factory.django import DjangoModelFactory
 from openpyxl import Workbook
 
 from accounts.tests.factories import ActiveUserFactory
-from sources.models import SourceFile, SourceFileType, SourceParseStatus, SourceSheet
+from sources.models import (
+    GoogleSheetSource,
+    GoogleSheetTab,
+    SourceFile,
+    SourceFileType,
+    SourceParseStatus,
+    SourceSheet,
+)
 from tenants.tests.factories import create_workspace_with_owner
 
 
@@ -98,3 +105,49 @@ def create_source_file(*, workspace=None, user=None, **kwargs):
     }
     defaults.update(kwargs)
     return SourceFile.objects.create(**defaults)
+
+
+class GoogleSheetSourceFactory(DjangoModelFactory):
+    class Meta:
+        model = GoogleSheetSource
+
+    workspace = factory.SubFactory("tenants.tests.factories.WorkspaceFactory")
+    name = factory.Sequence(lambda n: f"Google Sheet {n}")
+    spreadsheet_id = factory.Sequence(lambda n: f"spreadsheet-id-{n:020d}")
+    spreadsheet_url = factory.LazyAttribute(
+        lambda o: f"https://docs.google.com/spreadsheets/d/{o.spreadsheet_id}/edit",
+    )
+    worksheet_title = ""
+    status = SourceParseStatus.PENDING
+    created_by = factory.LazyAttribute(lambda o: o.workspace.owner)
+
+
+class GoogleSheetTabFactory(DjangoModelFactory):
+    class Meta:
+        model = GoogleSheetTab
+
+    source = factory.SubFactory(GoogleSheetSourceFactory)
+    index = 0
+    name = "Sheet1"
+    row_count = 10
+    column_count = 2
+    columns = factory.LazyFunction(
+        lambda: [{"index": 0, "name": "Summary"}, {"index": 1, "name": "Priority"}],
+    )
+    preview_rows = factory.LazyFunction(lambda: [["Fix login", "High"]])
+
+
+def create_google_sheet_source(*, workspace=None, user=None, **kwargs):
+    user = user or ActiveUserFactory()
+    workspace = workspace or create_workspace_with_owner(user=user)
+    defaults = {
+        "workspace": workspace,
+        "created_by": user,
+        "spreadsheet_id": kwargs.pop("spreadsheet_id", "1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms"),
+    }
+    defaults.update(kwargs)
+    if "spreadsheet_url" not in defaults:
+        defaults["spreadsheet_url"] = (
+            f"https://docs.google.com/spreadsheets/d/{defaults['spreadsheet_id']}/edit"
+        )
+    return GoogleSheetSource.objects.create(**defaults)

@@ -2,7 +2,7 @@
 from accounts.models import User
 from core.exceptions import ApiError
 from rest_framework import status
-from sources.models import SourceFile
+from sources.models import GoogleSheetSource, SourceFile
 from tenants.models import Workspace, WorkspaceRole
 from tenants.services.membership import get_membership, require_membership
 from tenants.services.workspace import get_workspace
@@ -47,3 +47,18 @@ def require_member(*, workspace_id, user: User):
     workspace = get_workspace(workspace_id=workspace_id, user=user)
     require_membership(user=user, workspace=workspace)
     return workspace
+
+
+def get_google_source(*, workspace_id, source_id, user: User) -> GoogleSheetSource:
+    workspace = get_workspace(workspace_id=workspace_id, user=user)
+    try:
+        return GoogleSheetSource.objects.prefetch_related("tabs").get(
+            pk=source_id,
+            workspace=workspace,
+        )
+    except GoogleSheetSource.DoesNotExist as exc:
+        raise ApiError(
+            detail="Google Sheet source not found.",
+            code="NOT_FOUND",
+            status_code=status.HTTP_404_NOT_FOUND,
+        ) from exc

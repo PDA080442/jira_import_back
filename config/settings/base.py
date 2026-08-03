@@ -117,6 +117,12 @@ SOURCE_FILE_PREVIEW_ROWS = env.int("SOURCE_FILE_PREVIEW_ROWS", default=20)
 FILE_UPLOAD_MAX_MEMORY_SIZE = max(SOURCE_FILE_MAX_SIZE_BYTES, 2621440)
 DATA_UPLOAD_MAX_MEMORY_SIZE = max(SOURCE_FILE_MAX_SIZE_BYTES, 2621440)
 
+GOOGLE_SERVICE_ACCOUNT_FILE = env("GOOGLE_SERVICE_ACCOUNT_FILE", default="")
+GOOGLE_SERVICE_ACCOUNT_JSON = env("GOOGLE_SERVICE_ACCOUNT_JSON", default="")
+GOOGLE_SHEETS_SCOPES = [
+    "https://www.googleapis.com/auth/spreadsheets.readonly",
+]
+
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 AUTH_USER_MODEL = "accounts.User"
@@ -185,6 +191,13 @@ SPECTACULAR_SETTINGS = {
             "description": (
                 "Excel/CSV file uploads per workspace. Upload returns immediately; "
                 "parsing runs in Celery and exposes sheets, columns, and preview rows."
+            ),
+        },
+        {
+            "name": "Google Sheet Sources",
+            "description": (
+                "Google Sheets connected by URL or spreadsheet ID. Snapshot refresh runs "
+                "in Celery via global service account; exposes tabs, columns, preview rows."
             ),
         },
     ],

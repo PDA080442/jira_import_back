@@ -99,3 +99,79 @@ class SourceSheet(models.Model):
 
     def __str__(self) -> str:
         return f"{self.name} (#{self.index})"
+
+
+class GoogleSheetSource(models.Model):
+    """Workspace-scoped Google Sheets source (no per-source credentials)."""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    workspace = models.ForeignKey(
+        "tenants.Workspace",
+        on_delete=models.CASCADE,
+        related_name="google_sheet_sources",
+    )
+    name = models.CharField(max_length=255)
+    spreadsheet_id = models.CharField(max_length=128)
+    spreadsheet_url = models.URLField(max_length=512, blank=True, default="")
+    worksheet_title = models.CharField(max_length=255, blank=True, default="")
+    status = models.CharField(
+        max_length=16,
+        choices=SourceParseStatus.choices,
+        default=SourceParseStatus.PENDING,
+    )
+    sheet_count = models.PositiveIntegerField(default=0)
+    error_message = models.CharField(max_length=2000, blank=True, default="")
+    last_sync_started_at = models.DateTimeField(null=True, blank=True)
+    synced_at = models.DateTimeField(null=True, blank=True)
+    is_active = models.BooleanField(default=True)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="created_google_sheet_sources",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+        indexes = [
+            models.Index(fields=["workspace", "is_active"]),
+            models.Index(fields=["workspace", "status"]),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.name} ({self.spreadsheet_id})"
+
+
+class GoogleSheetTab(models.Model):
+    """Cached tab/sheet from a Google Sheets source."""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    source = models.ForeignKey(
+        GoogleSheetSource,
+        on_delete=models.CASCADE,
+        related_name="tabs",
+    )
+    index = models.PositiveIntegerField()
+    name = models.CharField(max_length=255)
+    row_count = models.PositiveIntegerField(default=0)
+    column_count = models.PositiveIntegerField(default=0)
+    columns = models.JSONField(default=list, blank=True)
+    preview_rows = models.JSONField(default=list, blank=True)
+
+    class Meta:
+        ordering = ["index"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["source", "index"],
+                name="unique_google_sheet_tab_index_per_source",
+            ),
+        ]
+        indexes = [
+            models.Index(fields=["source"]),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.name} (#{self.index})"
