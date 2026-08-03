@@ -17,6 +17,9 @@ from sources.constants import (
     CSV_EXTENSIONS,
     EXCEL_EXTENSIONS,
     get_max_file_size_bytes,
+    is_supported_encoding,
+    normalize_encoding_name,
+    resolve_delimiter_choice,
 )
 from sources.models import SourceFile, SourceFileType, SourceParseStatus
 from sources.services.access import _require_editor, require_member
@@ -35,6 +38,34 @@ def _source_audit_payload(source: SourceFile) -> dict:
         "is_active": source.is_active,
         "sheet_count": source.sheet_count,
     }
+
+
+def _resolve_encoding_override(encoding: str | None) -> str:
+    if not encoding:
+        return ""
+    normalized = normalize_encoding_name(encoding)
+    if not is_supported_encoding(normalized):
+        raise ApiError(
+            detail="Unsupported encoding.",
+            code="VALIDATION_ERROR",
+            field_errors={"encoding": [f"Supported encodings: utf-8, utf-8-sig, cp1251, latin-1, utf-16."]},
+            status_code=status.HTTP_400_BAD_REQUEST,
+        )
+    return normalized
+
+
+def _resolve_delimiter_override(delimiter: str | None) -> str:
+    if not delimiter:
+        return ""
+    try:
+        return resolve_delimiter_choice(delimiter)
+    except ValueError:
+        raise ApiError(
+            detail="Unsupported delimiter.",
+            code="VALIDATION_ERROR",
+            field_errors={"delimiter": ["Allowed values: comma, semicolon, tab, pipe."]},
+            status_code=status.HTTP_400_BAD_REQUEST,
+        ) from None
 
 
 def _detect_file_type(filename: str) -> SourceFileType | None:
@@ -102,13 +133,23 @@ def list_source_files(*, workspace_id, user: User, include_inactive: bool = Fals
 
 
 @transaction.atomic
-def create_source_file(*, workspace_id, user: User, upload, name: str | None = None) -> SourceFile:
+def create_source_file(
+    *,
+    workspace_id,
+    user: User,
+    upload,
+    name: str | None = None,
+    delimiter: str | None = None,
+    encoding: str | None = None,
+) -> SourceFile:
     workspace = get_workspace(workspace_id=workspace_id, user=user)
     _require_editor(user=user, workspace=workspace, action="upload")
 
     filename = upload.name or "upload"
     file_type = _validate_upload(upload=upload, filename=filename)
     checksum = _compute_checksum(upload)
+    delimiter_override = _resolve_delimiter_override(delimiter)
+    encoding_override = _resolve_encoding_override(encoding)
 
     source_id = uuid.uuid4()
     source = SourceFile(
@@ -120,6 +161,8 @@ def create_source_file(*, workspace_id, user: User, upload, name: str | None = N
         content_type=getattr(upload, "content_type", "") or "",
         checksum=checksum,
         status=SourceParseStatus.PENDING,
+        delimiter_override=delimiter_override,
+        encoding_override=encoding_override,
         created_by=user,
     )
     source.file.save(os.path.basename(filename), upload, save=False)
@@ -162,7 +205,13 @@ def deactivate_source_file(*, source: SourceFile, user: User) -> SourceFile:
     return source
 
 
-def start_reparse(*, source: SourceFile, user: User) -> dict:
+def start_reparse(
+    *,
+    source: SourceFile,
+    user: User,
+    delimiter: str | None = None,
+    encoding: str | None = None,
+) -> dict:
     _require_editor(user=user, workspace=source.workspace, action="reparse")
 
     if not source.is_active:
@@ -180,9 +229,17 @@ def start_reparse(*, source: SourceFile, user: User) -> dict:
             status_code=status.HTTP_409_CONFLICT,
         )
 
+    update_fields = ["status", "error_message", "updated_at"]
+    if delimiter is not None:
+        source.delimiter_override = _resolve_delimiter_override(delimiter) if delimiter else ""
+        update_fields.append("delimiter_override")
+    if encoding is not None:
+        source.encoding_override = _resolve_encoding_override(encoding) if encoding else ""
+        update_fields.append("encoding_override")
+
     source.status = SourceParseStatus.PENDING
     source.error_message = ""
-    source.save(update_fields=["status", "error_message", "updated_at"])
+    source.save(update_fields=update_fields)
 
     from sources.tasks import parse_source_file
 

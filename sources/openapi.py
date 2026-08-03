@@ -15,6 +15,7 @@ from sources.serializers import (
     GoogleSheetSourceListItemSerializer,
     GoogleSheetSourceSerializer,
     SourceFileListItemSerializer,
+    SourceFileReparseRequestSerializer,
     SourceFileReparseResponseSerializer,
     SourceFileSerializer,
     SourceFileUploadSerializer,
@@ -60,6 +61,10 @@ source_pending_example = OpenApiExample(
         "status": "pending",
         "encoding": "",
         "delimiter": "",
+        "encoding_override": "",
+        "delimiter_override": "",
+        "encoding_confidence": None,
+        "warnings": [],
         "sheet_count": 0,
         "error_message": "",
         "parse_started_at": None,
@@ -84,6 +89,12 @@ source_ready_example = OpenApiExample(
         "status": "ready",
         "encoding": "utf-8",
         "delimiter": ",",
+        "encoding_override": "",
+        "delimiter_override": "",
+        "encoding_confidence": 0.99,
+        "warnings": [
+            {"code": "BOM_DETECTED", "message": "BOM detected; using utf-8-sig."},
+        ],
         "sheet_count": 1,
         "error_message": "",
         "parse_started_at": "2026-08-03T12:00:01.000000Z",
@@ -125,6 +136,10 @@ source_failed_example = OpenApiExample(
         "status": "failed",
         "encoding": "",
         "delimiter": "",
+        "encoding_override": "",
+        "delimiter_override": "",
+        "encoding_confidence": None,
+        "warnings": [],
         "sheet_count": 0,
         "error_message": "Excel file contains no worksheets.",
         "parse_started_at": "2026-08-03T12:00:01.000000Z",
@@ -161,7 +176,8 @@ source_file_list_create_schema = {
         operation_id="source_file_upload",
         summary="Upload Excel/CSV source file",
         description=(
-            "Uploads `.xlsx` or `.csv` file. Parsing runs asynchronously in Celery. "
+            "Uploads `.xlsx` or `.csv` file. Optional `delimiter` (comma/semicolon/tab/pipe) "
+            "and `encoding` override CSV parsing. Parsing runs asynchronously in Celery. "
             "Requires editor, admin, or owner role."
         ),
         parameters=[TRACE_ID_HEADER, WORKSPACE_ID_PATH],
@@ -218,10 +234,11 @@ source_file_reparse_schema = extend_schema(
     summary="Re-run source file parsing",
     description=(
         "Triggers background re-parse of the uploaded file. "
+        "Optional body may include `delimiter` and `encoding` overrides for CSV. "
         "Returns 409 if parsing is already in progress."
     ),
     parameters=[TRACE_ID_HEADER, WORKSPACE_ID_PATH, SOURCE_ID_PATH],
-    request=None,
+    request=SourceFileReparseRequestSerializer,
     responses={
         202: OpenApiResponse(
             response=SourceFileReparseResponseSerializer,
