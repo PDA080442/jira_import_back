@@ -49,3 +49,12 @@ def test_openapi_schema_contains_jira_paths(api_client):
     assert "/api/workspaces/{workspace_id}/jira-connections/{id}/test/" in paths
     assert "/api/workspaces/{workspace_id}/jira-connections/{id}/metadata/" in paths
     assert "/api/workspaces/{workspace_id}/jira-connections/{id}/sync-metadata/" in paths
+
+
+def test_openapi_schema_contains_source_file_paths(api_client):
+    schema = _fetch_openapi_schema(api_client)
+    paths = schema.get("paths", {})
+    assert "/api/workspaces/{workspace_id}/source-files/" in paths
+    assert "/api/workspaces/{workspace_id}/source-files/{id}/" in paths
+    assert "/api/workspaces/{workspace_id}/source-files/{id}/deactivate/" in paths
+    assert "/api/workspaces/{workspace_id}/source-files/{id}/reparse/" in paths
