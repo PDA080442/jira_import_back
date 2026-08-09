@@ -48,7 +48,7 @@ def test_upload_xlsx_returns_pending(editor_client, monkeypatch):
     client, user = editor_client
     workspace = create_workspace_with_owner(user=user)
 
-    def _noop_delay(source_id):
+    def _noop_delay(*args, **kwargs):
         return None
 
     monkeypatch.setattr("sources.tasks.parse_source_file.delay", _noop_delay)
@@ -67,7 +67,7 @@ def test_upload_xlsx_returns_pending(editor_client, monkeypatch):
 def test_upload_csv_returns_pending(editor_client, monkeypatch):
     client, user = editor_client
     workspace = create_workspace_with_owner(user=user)
-    monkeypatch.setattr("sources.tasks.parse_source_file.delay", lambda *_: None)
+    monkeypatch.setattr("sources.tasks.parse_source_file.delay", lambda *a, **k: None)
 
     response = client.post(
         _list_url(workspace.id),
@@ -91,7 +91,7 @@ def test_upload_rejects_invalid_extension(editor_client):
 def test_list_source_files_for_member(editor_client, monkeypatch):
     client, user = editor_client
     workspace = create_workspace_with_owner(user=user)
-    monkeypatch.setattr("sources.tasks.parse_source_file.delay", lambda *_: None)
+    monkeypatch.setattr("sources.tasks.parse_source_file.delay", lambda *a, **k: None)
     client.post(_list_url(workspace.id), {"file": make_uploaded_csv()}, format="multipart")
 
     response = client.get(_list_url(workspace.id))
@@ -129,7 +129,7 @@ def test_viewer_cannot_upload(viewer_client, editor_client):
 def test_editor_can_deactivate(editor_client, monkeypatch):
     client, user = editor_client
     workspace = create_workspace_with_owner(user=user)
-    monkeypatch.setattr("sources.tasks.parse_source_file.delay", lambda *_: None)
+    monkeypatch.setattr("sources.tasks.parse_source_file.delay", lambda *a, **k: None)
 
     upload = client.post(
         _list_url(workspace.id),
@@ -155,7 +155,7 @@ def test_viewer_cannot_deactivate(viewer_client, editor_client, monkeypatch):
 
     editor = APIClient()
     editor.force_authenticate(user=owner)
-    monkeypatch.setattr("sources.tasks.parse_source_file.delay", lambda *_: None)
+    monkeypatch.setattr("sources.tasks.parse_source_file.delay", lambda *a, **k: None)
     upload = editor.post(
         _list_url(workspace.id),
         {"file": make_uploaded_csv()},
@@ -170,7 +170,7 @@ def test_viewer_cannot_deactivate(viewer_client, editor_client, monkeypatch):
 def test_reparse_returns_202(editor_client, monkeypatch):
     client, user = editor_client
     workspace = create_workspace_with_owner(user=user)
-    monkeypatch.setattr("sources.tasks.parse_source_file.delay", lambda *_: None)
+    monkeypatch.setattr("sources.tasks.parse_source_file.delay", lambda *a, **k: None)
 
     upload = client.post(
         _list_url(workspace.id),

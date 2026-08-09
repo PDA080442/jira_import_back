@@ -24,7 +24,16 @@ from sources.constants import (
     WARN_RAGGED_ROWS,
     get_preview_rows,
 )
-from sources.models import SourceFile, SourceFileType, SourceParseStatus, SourceSheet
+from sources.models import (
+    PresetSourceType,
+    RefreshTrigger,
+    SourceFile,
+    SourceFileType,
+    SourceParseStatus,
+    SourceSheet,
+)
+from sources.services import snapshots as snapshots_service
+
 
 logger = structlog.get_logger(__name__)
 
@@ -209,6 +218,7 @@ def _parse_csv(
                 "column_count": len(columns),
                 "columns": columns,
                 "preview_rows": data_rows[:preview_limit],
+                "rows": data_rows,
             }
         ],
         encoding,
@@ -254,6 +264,7 @@ def _parse_xlsx(raw_bytes: bytes) -> tuple[list[dict], list[dict]]:
                     "column_count": len(columns),
                     "columns": columns,
                     "preview_rows": data_rows[:preview_limit],
+                    "rows": data_rows,
                 }
             )
     finally:
@@ -307,12 +318,20 @@ def _persist_sheets(
     )
 
 
-def run_parse(source_file_id: str) -> None:
+def run_parse(
+    source_file_id: str,
+    *,
+    trigger: str = RefreshTrigger.PARSE,
+    from_where: str = "upload",
+) -> None:
     """Parse source file and persist sheets. Called from Celery task."""
-    source = SourceFile.objects.select_for_update().get(id=source_file_id)
+    started_at = timezone.now()
+    source = SourceFile.objects.select_for_update().select_related("workspace").get(
+        id=source_file_id,
+    )
 
     source.status = SourceParseStatus.PARSING
-    source.parse_started_at = timezone.now()
+    source.parse_started_at = started_at
     source.error_message = ""
     source.save(update_fields=["status", "parse_started_at", "error_message", "updated_at"])
 
@@ -345,6 +364,23 @@ def run_parse(source_file_id: str) -> None:
             warnings=warnings,
         )
 
+        snapshots_service.create_snapshot_after_success(
+            workspace=source.workspace,
+            source_type=PresetSourceType.FILE,
+            source_id=source.id,
+            sheets_full=sheets_data,
+            user=source.created_by,
+            trigger=trigger,
+            from_where=from_where,
+            meta={
+                "encoding": encoding,
+                "delimiter": delimiter,
+                "warnings_count": len(warnings),
+            },
+            started_at=started_at,
+        )
+        source.refresh_from_db()
+
         warnings_count = len(warnings)
         log_action(
             action="source_file.parse.succeeded",
@@ -359,6 +395,7 @@ def run_parse(source_file_id: str) -> None:
                 "delimiter": delimiter,
                 "encoding_confidence": encoding_confidence,
                 "warnings_count": warnings_count,
+                "active_snapshot_id": str(source.active_snapshot_id) if source.active_snapshot_id else None,
             },
         )
         log_kwargs = {
@@ -376,6 +413,16 @@ def run_parse(source_file_id: str) -> None:
         source.error_message = str(exc)[:2000]
         source.parsed_at = timezone.now()
         source.save(update_fields=["status", "error_message", "parsed_at", "updated_at"])
+        snapshots_service.record_refresh_failure(
+            workspace=source.workspace,
+            source_type=PresetSourceType.FILE,
+            source_id=source.id,
+            user=source.created_by,
+            trigger=trigger,
+            from_where=from_where,
+            error_message=source.error_message,
+            started_at=started_at,
+        )
         log_action(
             action="source_file.parse.failed",
             entity_type="source_file",

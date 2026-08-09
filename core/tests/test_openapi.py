@@ -58,6 +58,10 @@ def test_openapi_schema_contains_source_file_paths(api_client):
     assert "/api/workspaces/{workspace_id}/source-files/{id}/" in paths
     assert "/api/workspaces/{workspace_id}/source-files/{id}/deactivate/" in paths
     assert "/api/workspaces/{workspace_id}/source-files/{id}/reparse/" in paths
+    assert "/api/workspaces/{workspace_id}/source-files/{id}/refresh-runs/" in paths
+    assert "/api/workspaces/{workspace_id}/source-files/{id}/snapshots/" in paths
+    assert "/api/workspaces/{workspace_id}/source-files/{id}/snapshots/{snapshot_id}/" in paths
+    assert "/api/workspaces/{workspace_id}/source-files/{id}/snapshots/compare/" in paths
 
 
 def test_openapi_schema_contains_google_sheet_source_paths(api_client):
@@ -68,6 +72,10 @@ def test_openapi_schema_contains_google_sheet_source_paths(api_client):
     assert "/api/workspaces/{workspace_id}/google-sheet-sources/{id}/deactivate/" in paths
     assert "/api/workspaces/{workspace_id}/google-sheet-sources/{id}/refresh/" in paths
     assert "/api/workspaces/{workspace_id}/google-sheet-sources/{id}/apply-preset/" in paths
+    assert "/api/workspaces/{workspace_id}/google-sheet-sources/{id}/refresh-runs/" in paths
+    assert "/api/workspaces/{workspace_id}/google-sheet-sources/{id}/snapshots/" in paths
+    assert "/api/workspaces/{workspace_id}/google-sheet-sources/{id}/snapshots/{snapshot_id}/" in paths
+    assert "/api/workspaces/{workspace_id}/google-sheet-sources/{id}/snapshots/compare/" in paths
 
 
 def test_openapi_schema_contains_source_preset_paths(api_client):

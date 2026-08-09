@@ -25,6 +25,9 @@ from sources.serializers import (
     SourcePresetListItemSerializer,
     SourcePresetSerializer,
     SourcePresetUpdateSerializer,
+    SourceRefreshRunSerializer,
+    SourceSnapshotListItemSerializer,
+    SourceSnapshotSerializer,
 )
 
 SOURCE_FILES_TAG = "Source Files"
@@ -601,5 +604,123 @@ google_sheet_source_apply_preset_schema = extend_schema(
         403: API_ERROR_403,
         404: API_ERROR_404,
         409: error_response(409, "Refresh in progress.", examples=[PARSE_IN_PROGRESS_EXAMPLE]),
+    },
+)
+
+SNAPSHOT_ID_PATH = OpenApiParameter(
+    name="snapshot_id",
+    type=str,
+    location=OpenApiParameter.PATH,
+    description="Source snapshot UUID.",
+)
+
+source_file_refresh_runs_schema = extend_schema(
+    tags=[SOURCE_FILES_TAG],
+    operation_id="source_file_refresh_runs",
+    summary="List source file refresh runs",
+    parameters=[TRACE_ID_HEADER, WORKSPACE_ID_PATH, SOURCE_ID_PATH],
+    responses={
+        200: OpenApiResponse(response=SourceRefreshRunSerializer(many=True)),
+        401: API_ERROR_401,
+        404: API_ERROR_404,
+    },
+)
+
+source_file_snapshots_list_schema = extend_schema(
+    tags=[SOURCE_FILES_TAG],
+    operation_id="source_file_snapshots_list",
+    summary="List source file snapshots",
+    parameters=[TRACE_ID_HEADER, WORKSPACE_ID_PATH, SOURCE_ID_PATH],
+    responses={
+        200: OpenApiResponse(response=SourceSnapshotListItemSerializer(many=True)),
+        401: API_ERROR_401,
+        404: API_ERROR_404,
+    },
+)
+
+source_file_snapshot_detail_schema = extend_schema(
+    tags=[SOURCE_FILES_TAG],
+    operation_id="source_file_snapshot_detail",
+    summary="Get source file snapshot with full data",
+    parameters=[TRACE_ID_HEADER, WORKSPACE_ID_PATH, SOURCE_ID_PATH, SNAPSHOT_ID_PATH],
+    responses={
+        200: OpenApiResponse(response=SourceSnapshotSerializer),
+        401: API_ERROR_401,
+        404: API_ERROR_404,
+    },
+)
+
+source_file_snapshot_compare_schema = extend_schema(
+    tags=[SOURCE_FILES_TAG],
+    operation_id="source_file_snapshot_compare",
+    summary="Compare source file snapshots",
+    description="Compare current (active or ?current=) with previous (?previous= or prior by time).",
+    parameters=[
+        TRACE_ID_HEADER,
+        WORKSPACE_ID_PATH,
+        SOURCE_ID_PATH,
+        OpenApiParameter(name="current", type=str, location=OpenApiParameter.QUERY, required=False),
+        OpenApiParameter(name="previous", type=str, location=OpenApiParameter.QUERY, required=False),
+    ],
+    responses={
+        200: OpenApiResponse(description="Diff summary"),
+        400: API_ERROR_400,
+        401: API_ERROR_401,
+        404: API_ERROR_404,
+    },
+)
+
+google_sheet_source_refresh_runs_schema = extend_schema(
+    tags=[GOOGLE_SHEET_SOURCES_TAG],
+    operation_id="google_sheet_source_refresh_runs",
+    summary="List Google Sheet refresh runs",
+    parameters=[TRACE_ID_HEADER, WORKSPACE_ID_PATH, SOURCE_ID_PATH],
+    responses={
+        200: OpenApiResponse(response=SourceRefreshRunSerializer(many=True)),
+        401: API_ERROR_401,
+        404: API_ERROR_404,
+    },
+)
+
+google_sheet_source_snapshots_list_schema = extend_schema(
+    tags=[GOOGLE_SHEET_SOURCES_TAG],
+    operation_id="google_sheet_source_snapshots_list",
+    summary="List Google Sheet snapshots",
+    parameters=[TRACE_ID_HEADER, WORKSPACE_ID_PATH, SOURCE_ID_PATH],
+    responses={
+        200: OpenApiResponse(response=SourceSnapshotListItemSerializer(many=True)),
+        401: API_ERROR_401,
+        404: API_ERROR_404,
+    },
+)
+
+google_sheet_source_snapshot_detail_schema = extend_schema(
+    tags=[GOOGLE_SHEET_SOURCES_TAG],
+    operation_id="google_sheet_source_snapshot_detail",
+    summary="Get Google Sheet snapshot with full data",
+    parameters=[TRACE_ID_HEADER, WORKSPACE_ID_PATH, SOURCE_ID_PATH, SNAPSHOT_ID_PATH],
+    responses={
+        200: OpenApiResponse(response=SourceSnapshotSerializer),
+        401: API_ERROR_401,
+        404: API_ERROR_404,
+    },
+)
+
+google_sheet_source_snapshot_compare_schema = extend_schema(
+    tags=[GOOGLE_SHEET_SOURCES_TAG],
+    operation_id="google_sheet_source_snapshot_compare",
+    summary="Compare Google Sheet snapshots",
+    parameters=[
+        TRACE_ID_HEADER,
+        WORKSPACE_ID_PATH,
+        SOURCE_ID_PATH,
+        OpenApiParameter(name="current", type=str, location=OpenApiParameter.QUERY, required=False),
+        OpenApiParameter(name="previous", type=str, location=OpenApiParameter.QUERY, required=False),
+    ],
+    responses={
+        200: OpenApiResponse(description="Diff summary"),
+        400: API_ERROR_400,
+        401: API_ERROR_401,
+        404: API_ERROR_404,
     },
 )

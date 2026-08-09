@@ -49,7 +49,7 @@ def viewer_client():
 def test_create_google_source_returns_pending(editor_client, monkeypatch):
     client, user = editor_client
     workspace = create_workspace_with_owner(user=user)
-    monkeypatch.setattr("sources.tasks.refresh_google_sheet_snapshot.delay", lambda *_: None)
+    monkeypatch.setattr("sources.tasks.refresh_google_sheet_snapshot.delay", lambda *a, **k: None)
 
     response = client.post(
         _list_url(workspace.id),
@@ -78,7 +78,7 @@ def test_create_rejects_invalid_url(editor_client):
 def test_list_google_sources_for_member(editor_client, monkeypatch):
     client, user = editor_client
     workspace = create_workspace_with_owner(user=user)
-    monkeypatch.setattr("sources.tasks.refresh_google_sheet_snapshot.delay", lambda *_: None)
+    monkeypatch.setattr("sources.tasks.refresh_google_sheet_snapshot.delay", lambda *a, **k: None)
     client.post(
         _list_url(workspace.id),
         {"spreadsheet_url": SAMPLE_URL},
@@ -120,7 +120,7 @@ def test_viewer_cannot_create(viewer_client, editor_client):
 def test_editor_can_deactivate(editor_client, monkeypatch):
     client, user = editor_client
     workspace = create_workspace_with_owner(user=user)
-    monkeypatch.setattr("sources.tasks.refresh_google_sheet_snapshot.delay", lambda *_: None)
+    monkeypatch.setattr("sources.tasks.refresh_google_sheet_snapshot.delay", lambda *a, **k: None)
 
     created = client.post(
         _list_url(workspace.id),
@@ -137,7 +137,7 @@ def test_editor_can_deactivate(editor_client, monkeypatch):
 def test_refresh_returns_202(editor_client, monkeypatch):
     client, user = editor_client
     workspace = create_workspace_with_owner(user=user)
-    monkeypatch.setattr("sources.tasks.refresh_google_sheet_snapshot.delay", lambda *_: None)
+    monkeypatch.setattr("sources.tasks.refresh_google_sheet_snapshot.delay", lambda *a, **k: None)
 
     created = client.post(
         _list_url(workspace.id),
@@ -154,7 +154,7 @@ def test_refresh_returns_202(editor_client, monkeypatch):
 def test_refresh_in_progress_returns_409(editor_client, monkeypatch):
     client, user = editor_client
     workspace = create_workspace_with_owner(user=user)
-    monkeypatch.setattr("sources.tasks.refresh_google_sheet_snapshot.delay", lambda *_: None)
+    monkeypatch.setattr("sources.tasks.refresh_google_sheet_snapshot.delay", lambda *a, **k: None)
 
     created = client.post(
         _list_url(workspace.id),

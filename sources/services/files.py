@@ -273,7 +273,7 @@ def start_reparse(
 
     from sources.tasks import parse_source_file
 
-    parse_source_file.delay(str(source.id))
+    parse_source_file.delay(str(source.id), trigger="reparse", from_where="reparse")
 
     log_action(
         action="source_file.reparse.requested",

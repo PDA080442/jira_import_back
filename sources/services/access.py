@@ -31,7 +31,9 @@ def _require_editor(*, user: User, workspace: Workspace, action: str) -> None:
 def get_source_file(*, workspace_id, source_id, user: User) -> SourceFile:
     workspace = get_workspace(workspace_id=workspace_id, user=user)
     try:
-        return SourceFile.objects.prefetch_related("sheets").get(
+        return SourceFile.objects.select_related("active_snapshot", "applied_preset").prefetch_related(
+            "sheets",
+        ).get(
             pk=source_id,
             workspace=workspace,
         )
@@ -52,7 +54,10 @@ def require_member(*, workspace_id, user: User):
 def get_google_source(*, workspace_id, source_id, user: User) -> GoogleSheetSource:
     workspace = get_workspace(workspace_id=workspace_id, user=user)
     try:
-        return GoogleSheetSource.objects.prefetch_related("tabs").get(
+        return GoogleSheetSource.objects.select_related(
+            "active_snapshot",
+            "applied_preset",
+        ).prefetch_related("tabs").get(
             pk=source_id,
             workspace=workspace,
         )

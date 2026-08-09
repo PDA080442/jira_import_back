@@ -1,4 +1,4 @@
-"""Fetch and persist Google Sheets snapshot (columns + preview)."""
+"""Fetch and persist Google Sheets snapshot (columns + preview + full snapshot)."""
 import time
 
 from django.db import transaction
@@ -7,7 +7,13 @@ from django.utils import timezone
 from audit.services.log_action import log_action
 from core.logging import get_logger
 from sources.constants import get_preview_rows
-from sources.models import GoogleSheetSource, GoogleSheetTab, SourceParseStatus
+from sources.models import (
+    GoogleSheetSource,
+    GoogleSheetTab,
+    PresetSourceType,
+    RefreshTrigger,
+    SourceParseStatus,
+)
 from sources.services.google_sheets import _google_source_audit_payload
 from sources.services.google_sheets_client import (
     GoogleSheetsError,
@@ -15,6 +21,7 @@ from sources.services.google_sheets_client import (
     fetch_spreadsheet,
 )
 from sources.services.parsing import _build_columns, _normalize_row
+from sources.services import snapshots as snapshots_service
 
 logger = get_logger("sources.google_snapshot")
 
@@ -32,6 +39,7 @@ def _worksheets_to_tabs(worksheets, preview_limit: int) -> list[dict]:
                     "column_count": 0,
                     "columns": [],
                     "preview_rows": [],
+                    "rows": [],
                 },
             )
             continue
@@ -45,10 +53,11 @@ def _worksheets_to_tabs(worksheets, preview_limit: int) -> list[dict]:
             {
                 "index": index,
                 "name": ws.title,
-                "row_count": len(all_rows),
+                "row_count": len(data_rows),
                 "column_count": max_cols,
                 "columns": columns,
                 "preview_rows": preview_rows,
+                "rows": data_rows,
             },
         )
     return tabs_data
@@ -73,13 +82,19 @@ def _persist_tabs(source: GoogleSheetSource, tabs_data: list[dict]) -> None:
         GoogleSheetTab.objects.bulk_create(rows)
 
 
-def run_snapshot(source_id: str) -> None:
-    started_at = time.monotonic()
+def run_snapshot(
+    source_id: str,
+    *,
+    trigger: str = RefreshTrigger.GOOGLE_REFRESH,
+    from_where: str = "google_api",
+) -> None:
+    started_at = timezone.now()
+    monotonic_start = time.monotonic()
     source = GoogleSheetSource.objects.select_related("workspace").get(pk=source_id)
 
     GoogleSheetSource.objects.filter(pk=source.pk).update(
         status=SourceParseStatus.PARSING,
-        last_sync_started_at=timezone.now(),
+        last_sync_started_at=started_at,
         error_message="",
         updated_at=timezone.now(),
     )
@@ -113,12 +128,25 @@ def run_snapshot(source_id: str) -> None:
                     "updated_at",
                 ],
             )
+            snapshots_service.create_snapshot_after_success(
+                workspace=source.workspace,
+                source_type=PresetSourceType.GOOGLE,
+                source_id=source.id,
+                sheets_full=tabs_data,
+                user=source.created_by,
+                trigger=trigger,
+                from_where=from_where,
+                meta={"tabs_count": len(tabs_data)},
+                started_at=started_at,
+            )
 
-        duration_ms = int((time.monotonic() - started_at) * 1000)
+        source.refresh_from_db()
+        duration_ms = int((time.monotonic() - monotonic_start) * 1000)
         payload = {
             **_google_source_audit_payload(source),
             "duration_ms": duration_ms,
             "tabs_count": source.sheet_count,
+            "active_snapshot_id": str(source.active_snapshot_id) if source.active_snapshot_id else None,
         }
         log_action(
             action="google_sheet_source.snapshot.succeeded",
@@ -133,67 +161,39 @@ def run_snapshot(source_id: str) -> None:
             duration_ms=duration_ms,
             tabs_count=source.sheet_count,
         )
-    except GoogleSheetsNotConfiguredError as exc:
-        error_message = str(exc)
-        GoogleSheetSource.objects.filter(pk=source.pk).update(
-            status=SourceParseStatus.FAILED,
-            error_message=error_message[:2000],
-            updated_at=timezone.now(),
-        )
-        source.refresh_from_db()
-        log_action(
-            action="google_sheet_source.snapshot.failed",
-            entity_type="google_sheet_source",
-            entity_id=str(source.id),
-            actor=None,
-            payload={**_google_source_audit_payload(source), "error": error_message[:512]},
-        )
-        logger.warning(
-            "google_sheet_snapshot_failed",
-            google_sheet_source_id=str(source.id),
-            error=error_message[:512],
-        )
-        raise
-    except GoogleSheetsError as exc:
-        error_message = str(exc) or "Google Sheet snapshot failed."
-        GoogleSheetSource.objects.filter(pk=source.pk).update(
-            status=SourceParseStatus.FAILED,
-            error_message=error_message[:2000],
-            updated_at=timezone.now(),
-        )
-        source.refresh_from_db()
-        log_action(
-            action="google_sheet_source.snapshot.failed",
-            entity_type="google_sheet_source",
-            entity_id=str(source.id),
-            actor=None,
-            payload={
-                **_google_source_audit_payload(source),
-                "http_status": exc.http_status,
-                "error": error_message[:512],
-            },
-        )
-        logger.warning(
-            "google_sheet_snapshot_failed",
-            google_sheet_source_id=str(source.id),
-            http_status=exc.http_status,
-            error=error_message[:512],
-        )
-        raise
     except Exception as exc:
-        error_message = str(exc) if str(exc) else "Google Sheet snapshot failed."
+        if isinstance(exc, GoogleSheetsNotConfiguredError):
+            error_message = str(exc)
+        elif isinstance(exc, GoogleSheetsError):
+            error_message = str(exc) or "Google Sheet snapshot failed."
+        else:
+            error_message = str(exc) if str(exc) else "Google Sheet snapshot failed."
+
         GoogleSheetSource.objects.filter(pk=source.pk).update(
             status=SourceParseStatus.FAILED,
             error_message=error_message[:2000],
             updated_at=timezone.now(),
         )
         source.refresh_from_db()
+        snapshots_service.record_refresh_failure(
+            workspace=source.workspace,
+            source_type=PresetSourceType.GOOGLE,
+            source_id=source.id,
+            user=source.created_by,
+            trigger=trigger,
+            from_where=from_where,
+            error_message=error_message,
+            started_at=started_at,
+        )
+        fail_payload = {**_google_source_audit_payload(source), "error": error_message[:512]}
+        if isinstance(exc, GoogleSheetsError) and getattr(exc, "http_status", None):
+            fail_payload["http_status"] = exc.http_status
         log_action(
             action="google_sheet_source.snapshot.failed",
             entity_type="google_sheet_source",
             entity_id=str(source.id),
             actor=None,
-            payload={**_google_source_audit_payload(source), "error": error_message[:512]},
+            payload=fail_payload,
         )
         logger.warning(
             "google_sheet_snapshot_failed",

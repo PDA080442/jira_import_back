@@ -22,7 +22,9 @@ from sources.models import (
     PresetSourceType,
     SourceFile,
     SourcePreset,
+    SourceRefreshRun,
     SourceSheet,
+    SourceSnapshot,
 )
 from sources.services import presets as presets_service
 
@@ -151,6 +153,83 @@ class AppliedPresetSummarySerializer(serializers.ModelSerializer):
         read_only_fields = fields
 
 
+class ActiveSnapshotSummarySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = SourceSnapshot
+        fields = (
+            "id",
+            "row_count",
+            "sheet_count",
+            "checksum",
+            "is_active",
+            "is_truncated",
+            "created_at",
+        )
+        read_only_fields = fields
+
+
+class SourceSnapshotListItemSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = SourceSnapshot
+        fields = (
+            "id",
+            "source_type",
+            "source_id",
+            "row_count",
+            "sheet_count",
+            "checksum",
+            "is_active",
+            "is_truncated",
+            "created_at",
+            "updated_at",
+        )
+        read_only_fields = fields
+
+
+class SourceSnapshotSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = SourceSnapshot
+        fields = (
+            "id",
+            "source_type",
+            "source_id",
+            "data",
+            "row_count",
+            "sheet_count",
+            "checksum",
+            "is_active",
+            "is_truncated",
+            "created_at",
+            "updated_at",
+        )
+        read_only_fields = fields
+
+
+class SourceRefreshRunSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = SourceRefreshRun
+        fields = (
+            "id",
+            "source_type",
+            "source_id",
+            "snapshot",
+            "trigger",
+            "status",
+            "from_where",
+            "error_message",
+            "started_at",
+            "finished_at",
+            "meta",
+            "created_at",
+        )
+        read_only_fields = fields
+
+
+class SnapshotCompareQuerySerializer(serializers.Serializer):
+    current = serializers.UUIDField(required=False)
+    previous = serializers.UUIDField(required=False)
+
+
 class PresetBindingSerializer(serializers.ModelSerializer):
     preset = SourcePresetListItemSerializer(read_only=True)
     is_stale = serializers.SerializerMethodField()
@@ -257,6 +336,7 @@ class SourceSheetSerializer(serializers.ModelSerializer):
 
 class SourceFileListItemSerializer(serializers.ModelSerializer):
     applied_preset = AppliedPresetSummarySerializer(read_only=True)
+    active_snapshot = ActiveSnapshotSummarySerializer(read_only=True)
 
     class Meta:
         model = SourceFile
@@ -276,6 +356,7 @@ class SourceFileListItemSerializer(serializers.ModelSerializer):
             "warnings",
             "applied_preset",
             "applied_settings",
+            "active_snapshot",
             "error_message",
             "parse_started_at",
             "parsed_at",
@@ -289,6 +370,7 @@ class SourceFileListItemSerializer(serializers.ModelSerializer):
 class SourceFileSerializer(serializers.ModelSerializer):
     sheets = SourceSheetSerializer(many=True, read_only=True)
     applied_preset = AppliedPresetSummarySerializer(read_only=True)
+    active_snapshot = ActiveSnapshotSummarySerializer(read_only=True)
 
     class Meta:
         model = SourceFile
@@ -308,6 +390,7 @@ class SourceFileSerializer(serializers.ModelSerializer):
             "warnings",
             "applied_preset",
             "applied_settings",
+            "active_snapshot",
             "sheet_count",
             "error_message",
             "parse_started_at",
@@ -357,6 +440,7 @@ class GoogleSheetTabSerializer(serializers.ModelSerializer):
 
 class GoogleSheetSourceListItemSerializer(serializers.ModelSerializer):
     applied_preset = AppliedPresetSummarySerializer(read_only=True)
+    active_snapshot = ActiveSnapshotSummarySerializer(read_only=True)
 
     class Meta:
         model = GoogleSheetSource
@@ -370,6 +454,7 @@ class GoogleSheetSourceListItemSerializer(serializers.ModelSerializer):
             "sheet_count",
             "applied_preset",
             "applied_settings",
+            "active_snapshot",
             "error_message",
             "last_sync_started_at",
             "synced_at",
@@ -383,6 +468,7 @@ class GoogleSheetSourceListItemSerializer(serializers.ModelSerializer):
 class GoogleSheetSourceSerializer(serializers.ModelSerializer):
     tabs = GoogleSheetTabSerializer(many=True, read_only=True)
     applied_preset = AppliedPresetSummarySerializer(read_only=True)
+    active_snapshot = ActiveSnapshotSummarySerializer(read_only=True)
 
     class Meta:
         model = GoogleSheetSource
@@ -396,6 +482,7 @@ class GoogleSheetSourceSerializer(serializers.ModelSerializer):
             "sheet_count",
             "applied_preset",
             "applied_settings",
+            "active_snapshot",
             "error_message",
             "last_sync_started_at",
             "synced_at",

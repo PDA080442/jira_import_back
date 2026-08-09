@@ -117,3 +117,15 @@ PRESET_SETTINGS_KEYS = frozenset(
 )
 PRESET_FILE_ONLY_KEYS = frozenset({"delimiter", "encoding"})
 PRESET_RECENT_DEFAULT_LIMIT = 10
+
+
+def get_snapshot_max_rows() -> int:
+    return getattr(settings, "SOURCE_SNAPSHOT_MAX_ROWS", 50_000)
+
+
+def get_snapshot_retention_count() -> int:
+    return getattr(settings, "SOURCE_SNAPSHOT_RETENTION_COUNT", 10)
+
+
+def get_snapshot_retention_days() -> int:
+    return getattr(settings, "SOURCE_SNAPSHOT_RETENTION_DAYS", 30)

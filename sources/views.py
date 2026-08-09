@@ -12,11 +12,19 @@ from sources.openapi import (
     google_sheet_source_detail_schema,
     google_sheet_source_list_create_schema,
     google_sheet_source_refresh_schema,
+    google_sheet_source_refresh_runs_schema,
+    google_sheet_source_snapshot_compare_schema,
+    google_sheet_source_snapshot_detail_schema,
+    google_sheet_source_snapshots_list_schema,
     source_file_apply_preset_schema,
     source_file_deactivate_schema,
     source_file_detail_schema,
     source_file_list_create_schema,
+    source_file_refresh_runs_schema,
     source_file_reparse_schema,
+    source_file_snapshot_compare_schema,
+    source_file_snapshot_detail_schema,
+    source_file_snapshots_list_schema,
     source_preset_deactivate_schema,
     source_preset_detail_schema,
     source_preset_list_create_schema,
@@ -30,6 +38,7 @@ from sources.serializers import (
     GoogleSheetSourceListItemSerializer,
     GoogleSheetSourceSerializer,
     PresetBindingSerializer,
+    SnapshotCompareQuerySerializer,
     SourceFileListItemSerializer,
     SourceFileReparseRequestSerializer,
     SourceFileReparseResponseSerializer,
@@ -39,11 +48,15 @@ from sources.serializers import (
     SourcePresetListItemSerializer,
     SourcePresetSerializer,
     SourcePresetUpdateSerializer,
+    SourceRefreshRunSerializer,
+    SourceSnapshotListItemSerializer,
+    SourceSnapshotSerializer,
 )
 from sources.services import access as access_service
 from sources.services import files as files_service
 from sources.services import google_sheets as google_sheets_service
 from sources.services import presets as presets_service
+from sources.services import snapshots as snapshots_service
 
 
 @extend_schema_view(
@@ -362,3 +375,133 @@ class GoogleSheetSourceApplyPresetView(APIView):
             source=source,
         )
         return Response(PresetBindingSerializer(binding).data)
+
+
+@extend_schema_view(get=source_file_refresh_runs_schema)
+class SourceFileRefreshRunsView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, workspace_id, pk):
+        access_service.get_source_file(workspace_id=workspace_id, source_id=pk, user=request.user)
+        runs = snapshots_service.list_refresh_runs(
+            workspace_id=workspace_id,
+            user=request.user,
+            source_type=PresetSourceType.FILE,
+            source_id=pk,
+        )
+        return Response(SourceRefreshRunSerializer(runs, many=True).data)
+
+
+@extend_schema_view(get=source_file_snapshots_list_schema)
+class SourceFileSnapshotsListView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, workspace_id, pk):
+        access_service.get_source_file(workspace_id=workspace_id, source_id=pk, user=request.user)
+        snapshots = snapshots_service.list_snapshots(
+            workspace_id=workspace_id,
+            user=request.user,
+            source_type=PresetSourceType.FILE,
+            source_id=pk,
+        )
+        return Response(SourceSnapshotListItemSerializer(snapshots, many=True).data)
+
+
+@extend_schema_view(get=source_file_snapshot_detail_schema)
+class SourceFileSnapshotDetailView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, workspace_id, pk, snapshot_id):
+        access_service.get_source_file(workspace_id=workspace_id, source_id=pk, user=request.user)
+        snapshot = snapshots_service.get_snapshot(
+            workspace_id=workspace_id,
+            user=request.user,
+            source_type=PresetSourceType.FILE,
+            source_id=pk,
+            snapshot_id=snapshot_id,
+        )
+        return Response(SourceSnapshotSerializer(snapshot).data)
+
+
+@extend_schema_view(get=source_file_snapshot_compare_schema)
+class SourceFileSnapshotCompareView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, workspace_id, pk):
+        access_service.get_source_file(workspace_id=workspace_id, source_id=pk, user=request.user)
+        query = SnapshotCompareQuerySerializer(data=request.query_params)
+        query.is_valid(raise_exception=True)
+        result = snapshots_service.compare_for_source(
+            workspace_id=workspace_id,
+            user=request.user,
+            source_type=PresetSourceType.FILE,
+            source_id=pk,
+            current_id=query.validated_data.get("current"),
+            previous_id=query.validated_data.get("previous"),
+        )
+        return Response(result)
+
+
+@extend_schema_view(get=google_sheet_source_refresh_runs_schema)
+class GoogleSheetRefreshRunsView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, workspace_id, pk):
+        access_service.get_google_source(workspace_id=workspace_id, source_id=pk, user=request.user)
+        runs = snapshots_service.list_refresh_runs(
+            workspace_id=workspace_id,
+            user=request.user,
+            source_type=PresetSourceType.GOOGLE,
+            source_id=pk,
+        )
+        return Response(SourceRefreshRunSerializer(runs, many=True).data)
+
+
+@extend_schema_view(get=google_sheet_source_snapshots_list_schema)
+class GoogleSheetSnapshotsListView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, workspace_id, pk):
+        access_service.get_google_source(workspace_id=workspace_id, source_id=pk, user=request.user)
+        snapshots = snapshots_service.list_snapshots(
+            workspace_id=workspace_id,
+            user=request.user,
+            source_type=PresetSourceType.GOOGLE,
+            source_id=pk,
+        )
+        return Response(SourceSnapshotListItemSerializer(snapshots, many=True).data)
+
+
+@extend_schema_view(get=google_sheet_source_snapshot_detail_schema)
+class GoogleSheetSnapshotDetailView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, workspace_id, pk, snapshot_id):
+        access_service.get_google_source(workspace_id=workspace_id, source_id=pk, user=request.user)
+        snapshot = snapshots_service.get_snapshot(
+            workspace_id=workspace_id,
+            user=request.user,
+            source_type=PresetSourceType.GOOGLE,
+            source_id=pk,
+            snapshot_id=snapshot_id,
+        )
+        return Response(SourceSnapshotSerializer(snapshot).data)
+
+
+@extend_schema_view(get=google_sheet_source_snapshot_compare_schema)
+class GoogleSheetSnapshotCompareView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, workspace_id, pk):
+        access_service.get_google_source(workspace_id=workspace_id, source_id=pk, user=request.user)
+        query = SnapshotCompareQuerySerializer(data=request.query_params)
+        query.is_valid(raise_exception=True)
+        result = snapshots_service.compare_for_source(
+            workspace_id=workspace_id,
+            user=request.user,
+            source_type=PresetSourceType.GOOGLE,
+            source_id=pk,
+            current_id=query.validated_data.get("current"),
+            previous_id=query.validated_data.get("previous"),
+        )
+        return Response(result)

@@ -468,14 +468,18 @@ def apply_preset_to_source(
         source.status = SourceParseStatus.PENDING
         source.error_message = ""
         source.save(update_fields=["status", "error_message", "updated_at"])
-        parse_source_file.delay(str(source.id))
+        parse_source_file.delay(str(source.id), trigger="preset_apply", from_where="preset")
     else:
         from sources.tasks import refresh_google_sheet_snapshot
 
         source.status = SourceParseStatus.PENDING
         source.error_message = ""
         source.save(update_fields=["status", "error_message", "updated_at"])
-        refresh_google_sheet_snapshot.delay(str(source.id))
+        refresh_google_sheet_snapshot.delay(
+            str(source.id),
+            trigger="preset_apply",
+            from_where="preset",
+        )
 
     log_action(
         action="source_preset.apply",

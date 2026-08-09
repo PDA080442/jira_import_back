@@ -2,6 +2,10 @@
 from django.urls import path
 
 from sources.views import (
+    GoogleSheetRefreshRunsView,
+    GoogleSheetSnapshotCompareView,
+    GoogleSheetSnapshotDetailView,
+    GoogleSheetSnapshotsListView,
     GoogleSheetSourceApplyPresetView,
     GoogleSheetSourceDeactivateView,
     GoogleSheetSourceDetailView,
@@ -12,7 +16,11 @@ from sources.views import (
     SourceFileDeactivateView,
     SourceFileDetailView,
     SourceFileListCreateView,
+    SourceFileRefreshRunsView,
     SourceFileReparseView,
+    SourceFileSnapshotCompareView,
+    SourceFileSnapshotDetailView,
+    SourceFileSnapshotsListView,
     SourcePresetDeactivateView,
     SourcePresetDetailView,
     SourcePresetListCreateView,
@@ -43,6 +51,26 @@ urlpatterns = [
         "workspaces/<uuid:workspace_id>/source-files/<uuid:pk>/apply-preset/",
         SourceFileApplyPresetView.as_view(),
         name="source-file-apply-preset",
+    ),
+    path(
+        "workspaces/<uuid:workspace_id>/source-files/<uuid:pk>/refresh-runs/",
+        SourceFileRefreshRunsView.as_view(),
+        name="source-file-refresh-runs",
+    ),
+    path(
+        "workspaces/<uuid:workspace_id>/source-files/<uuid:pk>/snapshots/compare/",
+        SourceFileSnapshotCompareView.as_view(),
+        name="source-file-snapshot-compare",
+    ),
+    path(
+        "workspaces/<uuid:workspace_id>/source-files/<uuid:pk>/snapshots/",
+        SourceFileSnapshotsListView.as_view(),
+        name="source-file-snapshots-list",
+    ),
+    path(
+        "workspaces/<uuid:workspace_id>/source-files/<uuid:pk>/snapshots/<uuid:snapshot_id>/",
+        SourceFileSnapshotDetailView.as_view(),
+        name="source-file-snapshot-detail",
     ),
     path(
         "workspaces/<uuid:workspace_id>/source-presets/recent/",
@@ -88,5 +116,25 @@ urlpatterns = [
         "workspaces/<uuid:workspace_id>/google-sheet-sources/<uuid:pk>/apply-preset/",
         GoogleSheetSourceApplyPresetView.as_view(),
         name="google-sheet-source-apply-preset",
+    ),
+    path(
+        "workspaces/<uuid:workspace_id>/google-sheet-sources/<uuid:pk>/refresh-runs/",
+        GoogleSheetRefreshRunsView.as_view(),
+        name="google-sheet-source-refresh-runs",
+    ),
+    path(
+        "workspaces/<uuid:workspace_id>/google-sheet-sources/<uuid:pk>/snapshots/compare/",
+        GoogleSheetSnapshotCompareView.as_view(),
+        name="google-sheet-source-snapshot-compare",
+    ),
+    path(
+        "workspaces/<uuid:workspace_id>/google-sheet-sources/<uuid:pk>/snapshots/",
+        GoogleSheetSnapshotsListView.as_view(),
+        name="google-sheet-source-snapshots-list",
+    ),
+    path(
+        "workspaces/<uuid:workspace_id>/google-sheet-sources/<uuid:pk>/snapshots/<uuid:snapshot_id>/",
+        GoogleSheetSnapshotDetailView.as_view(),
+        name="google-sheet-source-snapshot-detail",
     ),
 ]

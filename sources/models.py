@@ -32,6 +32,105 @@ class PresetBindingStatus(models.TextChoices):
     STALE = "stale", "Stale"
 
 
+class RefreshRunStatus(models.TextChoices):
+    SUCCEEDED = "succeeded", "Succeeded"
+    FAILED = "failed", "Failed"
+    TRUNCATED = "truncated", "Truncated"
+
+
+class RefreshTrigger(models.TextChoices):
+    PARSE = "parse", "Parse"
+    REPARSE = "reparse", "Reparse"
+    GOOGLE_REFRESH = "google_refresh", "Google refresh"
+    PRESET_APPLY = "preset_apply", "Preset apply"
+    MANUAL = "manual", "Manual"
+
+
+class SourceSnapshot(models.Model):
+    """Immutable full-data snapshot of a source at parse/refresh time."""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    workspace = models.ForeignKey(
+        "tenants.Workspace",
+        on_delete=models.CASCADE,
+        related_name="source_snapshots",
+    )
+    source_type = models.CharField(max_length=16, choices=PresetSourceType.choices)
+    source_id = models.UUIDField()
+    data = models.JSONField(default=dict, blank=True)
+    row_count = models.PositiveIntegerField(default=0)
+    sheet_count = models.PositiveIntegerField(default=0)
+    checksum = models.CharField(max_length=64, blank=True, default="")
+    is_active = models.BooleanField(default=False)
+    is_truncated = models.BooleanField(default=False)
+    created_by = models.ForeignKey(
+        django_settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="created_source_snapshots",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+        indexes = [
+            models.Index(fields=["workspace", "source_type", "source_id"]),
+            models.Index(fields=["source_type", "source_id", "is_active"]),
+            models.Index(fields=["created_at"]),
+        ]
+
+    def __str__(self) -> str:
+        return f"Snapshot {self.id} ({self.source_type}:{self.source_id})"
+
+
+class SourceRefreshRun(models.Model):
+    """History entry for a source parse/refresh attempt."""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    workspace = models.ForeignKey(
+        "tenants.Workspace",
+        on_delete=models.CASCADE,
+        related_name="source_refresh_runs",
+    )
+    source_type = models.CharField(max_length=16, choices=PresetSourceType.choices)
+    source_id = models.UUIDField()
+    snapshot = models.ForeignKey(
+        SourceSnapshot,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="refresh_runs",
+    )
+    triggered_by = models.ForeignKey(
+        django_settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="source_refresh_runs",
+    )
+    trigger = models.CharField(max_length=32, choices=RefreshTrigger.choices)
+    status = models.CharField(max_length=16, choices=RefreshRunStatus.choices)
+    from_where = models.CharField(max_length=64, blank=True, default="")
+    error_message = models.CharField(max_length=2000, blank=True, default="")
+    started_at = models.DateTimeField()
+    finished_at = models.DateTimeField(null=True, blank=True)
+    meta = models.JSONField(default=dict, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-started_at"]
+        indexes = [
+            models.Index(fields=["workspace", "source_type", "source_id", "-started_at"]),
+            models.Index(fields=["snapshot"]),
+        ]
+
+    def __str__(self) -> str:
+        return f"RefreshRun {self.id} ({self.status})"
+
+
 class SourcePreset(models.Model):
     """Named reusable configuration for a source type within a workspace."""
 
@@ -164,6 +263,13 @@ class SourceFile(models.Model):
         related_name="applied_source_files",
     )
     applied_settings = models.JSONField(default=dict, blank=True)
+    active_snapshot = models.ForeignKey(
+        "SourceSnapshot",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="active_for_source_files",
+    )
     sheet_count = models.PositiveIntegerField(default=0)
     error_message = models.CharField(max_length=2000, blank=True, default="")
     parse_started_at = models.DateTimeField(null=True, blank=True)
@@ -243,6 +349,13 @@ class GoogleSheetSource(models.Model):
         related_name="applied_google_sources",
     )
     applied_settings = models.JSONField(default=dict, blank=True)
+    active_snapshot = models.ForeignKey(
+        "SourceSnapshot",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="active_for_google_sources",
+    )
     status = models.CharField(
         max_length=16,
         choices=SourceParseStatus.choices,
